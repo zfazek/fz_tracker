@@ -1,9 +1,9 @@
 package com.ongroa.fztracker;
 
 class TrackPoint {
-    private String time;
-    private double lat;
-    private double lon;
+    private final String time;
+    private final double lat;
+    private final double lon;
 
     public TrackPoint(String time, double lat, double lon) {
         this.time = time;
