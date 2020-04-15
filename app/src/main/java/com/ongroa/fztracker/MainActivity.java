@@ -40,28 +40,83 @@ public class MainActivity extends AppCompatActivity {
 
     private final int PERMISSION_ID_FILE = 43;
     private final int PERMISSION_ID_LOCATION = 44;
-    private long counter;
-    private ArrayList<TrackPoint> trackPoints;
+    private final float MIN_SPEED_LIMIT = 2.0f;
+    private final float MIN_ACCURACY_LIMIT = 20.0f;
+    private DateFormat mDateFormat;
+    private long mCounter;
+    private float mDistance;
+    private long mElapsedTime;
+    private long mLastTime;
+    private long mMovingTime;
+    private double mLatitude;
+    private double mLongitude;
+    private double mTotalAscent;
+    private double mAltitude;
+    private String mNowAsISO;
+    private ArrayList<TrackPoint> mTrackPoints;
     private FusedLocationProviderClient mFusedLocationClient;
+    private Location mLastLocation;
+    private TextView speedTextView;
+    private TextView averageSpeedTextView;
+    private TextView distanceTextView;
+    private TextView elapsedTimeTextView;
+    private TextView movingTimeTextView;
+    private TextView accuracyTextView;
+    private TextView altitudeTextView;
+    private TextView totalAscentTextView;
+    private TextView bearingTextView;
     private TextView counterTextView;
     private TextView timeTextView;
     private TextView latTextView;
     private TextView lonTextView;
+
     private final LocationCallback locationCallback = new LocationCallback() {
         @Override
         public void onLocationResult(LocationResult locationResult) {
-            counter++;
-            Location location = locationResult.getLastLocation();
-            final double lan = location.getLatitude();
-            final double lon = location.getLongitude();
-            counterTextView.setText("Counter: " + counter);
-            DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-            df.setTimeZone(TimeZone.getTimeZone("UTC"));
-            final String nowAsISO = df.format(new Date());
-            timeTextView.setText(nowAsISO);
-            latTextView.setText("Latitude: " + lan);
-            lonTextView.setText("Longitude: " + lon);
-            trackPoints.add(new TrackPoint(nowAsISO, lan, lon));
+            final Location location = locationResult.getLastLocation();
+            if (mLastTime == 0) {
+                mLastTime = location.getTime();
+            }
+            final float speed = 3.6f * location.getSpeed();
+            final float accuracy = location.getAccuracy();
+            final float bearing = location.getBearing();
+            final long deltaTime = location.getTime() - mLastTime;
+            mLastTime = location.getTime();
+            if (mLastLocation != null && accuracy < MIN_ACCURACY_LIMIT) {
+                if (speed >= MIN_SPEED_LIMIT) {
+                    mLatitude = location.getLatitude();
+                    mLongitude = location.getLongitude();
+                    final float dist = location.distanceTo(mLastLocation);
+                    mDistance += dist;
+                    mMovingTime += deltaTime;
+                    mAltitude = location.getAltitude();
+                    final double lastAltitude = mLastLocation.getAltitude();
+                    if (mAltitude > lastAltitude) {
+                        mTotalAscent += mAltitude - lastAltitude;
+                    }
+                }
+                mCounter++;
+                mNowAsISO = mDateFormat.format(new Date());
+                mTrackPoints.add(new TrackPoint(mNowAsISO, mLatitude, mLongitude));
+                mElapsedTime += deltaTime;
+                mLastLocation = location;
+            }
+            counterTextView.setText("Counter: " + mCounter);
+            altitudeTextView.setText(String.format("Altitude: %.0f m", mAltitude));
+            totalAscentTextView.setText(String.format("Total Ascent: %.0f m", mTotalAscent));
+            distanceTextView.setText(String.format("Distance: %.0f m", mDistance));
+            elapsedTimeTextView.setText(String.format("Elapsed Time: %.0f s", mElapsedTime / 1000.0));
+            movingTimeTextView.setText(String.format("Moving Time: %.0f s", mMovingTime / 1000.0));
+            timeTextView.setText(mNowAsISO);
+            averageSpeedTextView.setText(String.format("Average Speed: %.1f km/h", 3.6f * mDistance / (mMovingTime + 1) * 1000.0f));
+            accuracyTextView.setText(String.format("Accuracy: %.0f m", accuracy));
+            speedTextView.setText(String.format("Speed: %.1f km/h", speed));
+            bearingTextView.setText(String.format("Bearing: %.0f deg", bearing));
+            latTextView.setText("Latitude: " + mLatitude);
+            lonTextView.setText("Longitude: " + mLongitude);
+            if (mLastLocation == null && accuracy < MIN_ACCURACY_LIMIT) {
+                mLastLocation = location;
+            }
         }
     };
 
@@ -70,9 +125,20 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        counter = 0;
-        trackPoints = new ArrayList<>();
+        mCounter = 0;
+        mDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        mDateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+        mTrackPoints = new ArrayList<>();
+        accuracyTextView = findViewById(R.id.accuracyTextView);
+        bearingTextView = findViewById(R.id.bearingTextView);
+        altitudeTextView = findViewById(R.id.altitudeTextView);
+        totalAscentTextView = findViewById(R.id.totalAscentTextView);
+        speedTextView = findViewById(R.id.speedTextView);
+        averageSpeedTextView = findViewById(R.id.averageSpeedTextView);
+        distanceTextView = findViewById(R.id.distanceTextView);
         counterTextView = findViewById(R.id.counterTextView);
+        elapsedTimeTextView = findViewById(R.id.elapsedTimeTextView);
+        movingTimeTextView = findViewById(R.id.movingTimeTextView);
         timeTextView = findViewById(R.id.timeTextView);
         latTextView = findViewById(R.id.latTextView);
         lonTextView = findViewById(R.id.lonTextView);
@@ -82,8 +148,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 writeToFile();
-                counter = 0;
-                trackPoints.clear();
+                mCounter = 0;
+                mTrackPoints.clear();
             }
         });
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
@@ -92,21 +158,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void writeToFile() {
-        if (!trackPoints.isEmpty()) {
+        if (!mTrackPoints.isEmpty()) {
             if (checkPermissionsFile()) {
                 StringBuilder data = new StringBuilder("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n" +
                         "<gpx version=\"1.1\" creator=\"FZ Tracker\" xmlns=\"http://www.topografix.com/GPX/1/1\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">\n" +
                         "<trk>\n" +
-                        "<name>Morning Ride</name>\n" +
+                        "<name>Ride</name>\n" +
                         "<type>1</type>\n" +
                         "  <trkseg>\n");
-                for (TrackPoint trkpt : trackPoints) {
+                for (TrackPoint trkpt : mTrackPoints) {
                     data.append(String.format("    <trkpt lat=\"%.8f\" lon=\"%.8f\">\n", trkpt.getLat(), trkpt.getLon()));
                     data.append(String.format("      <time>%s</time>\n", trkpt.getTime()));
                     data.append("    </trkpt>");
                 }
                 data.append("  </trkseg>\n" + "</trk>\n" + "</gpx>");
-                final String fileName = trackPoints.get(0).getTime() + ".gpx";
+                final String fileName = mTrackPoints.get(0).getTime() + ".gpx";
                 final File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
                 final File file = new File(path, fileName);
                 try {
