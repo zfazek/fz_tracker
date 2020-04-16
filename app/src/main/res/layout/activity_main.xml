@@ -7,31 +7,10 @@
     android:orientation="vertical">
 
     <TextView
-        android:id="@+id/accuracyTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="accuracy"
-        android:textAppearance="@style/TextAppearance.AppCompat.Large" />
-
-    <TextView
-        android:id="@+id/bearingTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="bearing"
-        android:textAppearance="@style/TextAppearance.AppCompat.Large" />
-
-    <TextView
         android:id="@+id/speedTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="speed"
-        android:textAppearance="@style/TextAppearance.AppCompat.Large" />
-
-    <TextView
-        android:id="@+id/averageSpeedTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="average speed"
         android:textAppearance="@style/TextAppearance.AppCompat.Large" />
 
     <TextView
@@ -42,10 +21,17 @@
         android:textAppearance="@style/TextAppearance.AppCompat.Large" />
 
     <TextView
-        android:id="@+id/counterTextView"
+        android:id="@+id/movingTimeTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="counter"
+        android:text="moving time"
+        android:textAppearance="@style/TextAppearance.AppCompat.Large" />
+
+    <TextView
+        android:id="@+id/averageSpeedTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="average speed"
         android:textAppearance="@style/TextAppearance.AppCompat.Large" />
 
     <TextView
@@ -55,52 +41,109 @@
         android:text="elapsed time"
         android:textAppearance="@style/TextAppearance.AppCompat.Large" />
 
-    <TextView
-        android:id="@+id/movingTimeTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="moving time"
-        android:textAppearance="@style/TextAppearance.AppCompat.Large" />
-
-    <TextView
-        android:id="@+id/timeTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="time"
-        android:textAppearance="@style/TextAppearance.AppCompat.Large" />
-
-    <TextView
-        android:id="@+id/altitudeTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="altitude"
-        android:textAppearance="@style/TextAppearance.AppCompat.Large" />
-
-    <TextView
-        android:id="@+id/totalAscentTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="totalAscent"
-        android:textAppearance="@style/TextAppearance.AppCompat.Large" />
-
-    <TextView
-        android:id="@+id/latTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="latitude"
-        android:textAppearance="@style/TextAppearance.AppCompat.Large" />
-
-    <TextView
-        android:id="@+id/lonTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="longitude"
-        android:textAppearance="@style/TextAppearance.AppCompat.Large" />
-
-    <Button
-        android:id="@+id/saveButton"
+    <LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Save" />
+        android:gravity="center"
+        android:orientation="horizontal">
+
+
+        <TextView
+            android:id="@+id/altitudeTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="altitude"
+            android:textAppearance="@style/TextAppearance.AppCompat.Large" />
+
+        <TextView
+            android:id="@+id/totalAscentTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="totalAscent"
+            android:textAppearance="@style/TextAppearance.AppCompat.Large" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/button1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="button1" />
+
+        <Button
+            android:id="@+id/button2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="button2" />
+
+    </LinearLayout>
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/latTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:text="latitude"
+            android:padding="10dip"
+            android:textAppearance="@style/TextAppearance.AppCompat.Large" />
+
+        <TextView
+            android:id="@+id/lonTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:text="longituede"
+            android:padding="10dip"
+            android:textAppearance="@style/TextAppearance.AppCompat.Large" />
+
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/accuracyTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentBottom="true"
+            android:text="accuracy"
+            android:padding="10dip"
+            android:textAppearance="@style/TextAppearance.AppCompat.Large" />
+
+        <TextView
+            android:id="@+id/timeTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="time"
+            android:layout_centerHorizontal="true"
+            android:padding="10dip"
+            android:layout_alignParentBottom="true"
+            android:textAppearance="@style/TextAppearance.AppCompat.Large" />
+
+        <TextView
+            android:id="@+id/bearingTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:text="bearing"
+            android:padding="10dip"
+            android:layout_alignParentBottom="true"
+            android:textAppearance="@style/TextAppearance.AppCompat.Large" />
+
+    </RelativeLayout>
 
 </LinearLayout>

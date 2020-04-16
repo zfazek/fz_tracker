@@ -42,7 +42,13 @@ public class MainActivity extends AppCompatActivity {
     private final int PERMISSION_ID_LOCATION = 44;
     private final float MIN_SPEED_LIMIT = 2.0f;
     private final float MIN_ACCURACY_LIMIT = 20.0f;
+    private State mState;
+    private DateFormat mTimeFormat;
     private DateFormat mDateFormat;
+    private DateFormat mDateFormatISO;
+    private float mSpeed;
+    private float mAccuracy;
+    private float mBearing;
     private long mCounter;
     private float mDistance;
     private long mElapsedTime;
@@ -52,6 +58,8 @@ public class MainActivity extends AppCompatActivity {
     private double mLongitude;
     private double mTotalAscent;
     private double mAltitude;
+    private String mNow;
+    private String mDateNow;
     private String mNowAsISO;
     private ArrayList<TrackPoint> mTrackPoints;
     private FusedLocationProviderClient mFusedLocationClient;
@@ -69,6 +77,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView timeTextView;
     private TextView latTextView;
     private TextView lonTextView;
+    private Button mButton1;
+    private Button mButton2;
 
     private final LocationCallback locationCallback = new LocationCallback() {
         @Override
@@ -77,13 +87,14 @@ public class MainActivity extends AppCompatActivity {
             if (mLastTime == 0) {
                 mLastTime = location.getTime();
             }
-            final float speed = 3.6f * location.getSpeed();
-            final float accuracy = location.getAccuracy();
-            final float bearing = location.getBearing();
+            mSpeed = 3.6f * location.getSpeed();
+            mAccuracy = location.getAccuracy();
+            mBearing = location.getBearing();
+            mNow = mTimeFormat.format(new Date());
             final long deltaTime = location.getTime() - mLastTime;
             mLastTime = location.getTime();
-            if (mLastLocation != null && accuracy < MIN_ACCURACY_LIMIT) {
-                if (speed >= MIN_SPEED_LIMIT) {
+            if (mState == State.STARTED && mLastLocation != null && mAccuracy < MIN_ACCURACY_LIMIT) {
+                if (mSpeed >= MIN_SPEED_LIMIT) {
                     mLatitude = location.getLatitude();
                     mLongitude = location.getLongitude();
                     final float dist = location.distanceTo(mLastLocation);
@@ -96,38 +107,57 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
                 mCounter++;
-                mNowAsISO = mDateFormat.format(new Date());
+                mNowAsISO = mDateFormatISO.format(new Date());
                 mTrackPoints.add(new TrackPoint(mNowAsISO, mLatitude, mLongitude));
                 mElapsedTime += deltaTime;
                 mLastLocation = location;
             }
-            counterTextView.setText("Counter: " + mCounter);
-            altitudeTextView.setText(String.format("Altitude: %.0f m", mAltitude));
-            totalAscentTextView.setText(String.format("Total Ascent: %.0f m", mTotalAscent));
-            distanceTextView.setText(String.format("Distance: %.0f m", mDistance));
-            elapsedTimeTextView.setText(String.format("Elapsed Time: %.0f s", mElapsedTime / 1000.0));
-            movingTimeTextView.setText(String.format("Moving Time: %.0f s", mMovingTime / 1000.0));
-            timeTextView.setText(mNowAsISO);
-            averageSpeedTextView.setText(String.format("Average Speed: %.1f km/h", 3.6f * mDistance / (mMovingTime + 1) * 1000.0f));
-            accuracyTextView.setText(String.format("Accuracy: %.0f m", accuracy));
-            speedTextView.setText(String.format("Speed: %.1f km/h", speed));
-            bearingTextView.setText(String.format("Bearing: %.0f deg", bearing));
-            latTextView.setText("Latitude: " + mLatitude);
-            lonTextView.setText("Longitude: " + mLongitude);
-            if (mLastLocation == null && accuracy < MIN_ACCURACY_LIMIT) {
+            if (mState == State.STOPPED) {
+                mLastLocation = null;
+            }
+            if (mLastLocation == null && mAccuracy < MIN_ACCURACY_LIMIT) {
                 mLastLocation = location;
             }
+            draw();
         }
     };
+
+    private void init() {
+        mState = State.STOPPED;
+        mButton1.setText("START");
+        mButton2.setEnabled(false);
+        mButton2.setVisibility(View.INVISIBLE);
+        mCounter = 0;
+        mTrackPoints.clear();
+        mDistance = 0;
+        mMovingTime = 0;
+        mElapsedTime = 0;
+        mTotalAscent = 0;
+    }
+
+    private void draw() {
+        altitudeTextView.setText(String.format("Alt.: %.0f m", mAltitude));
+        totalAscentTextView.setText(String.format("Tot. Ascent: %.0f m", mTotalAscent));
+        distanceTextView.setText(String.format("Distance: %.2f km", mDistance / 1000.0));
+        elapsedTimeTextView.setText(String.format("Elapsed Time: %.0f s", mElapsedTime / 1000.0));
+        movingTimeTextView.setText(String.format("Moving Time: %.0f s", mMovingTime / 1000.0));
+        timeTextView.setText(mNow);
+        averageSpeedTextView.setText(String.format("Average Speed: %.1f km/h", 3.6f * mDistance / (mMovingTime + 1) * 1000.0f));
+        accuracyTextView.setText(String.format("%.0f m", mAccuracy));
+        speedTextView.setText(String.format("Speed: %.1f km/h", mSpeed));
+        bearingTextView.setText(String.format("%.0f deg", mBearing));
+        latTextView.setText("" + mLatitude);
+        lonTextView.setText("" + mLongitude);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        mCounter = 0;
-        mDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-        mDateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+        mTimeFormat = new SimpleDateFormat("HH:mm:ss");
+        mDateFormat = new SimpleDateFormat("yyyy-MM-dd' 'HH:mm:ss");
+        mDateFormatISO = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        mDateFormatISO.setTimeZone(TimeZone.getTimeZone("UTC"));
         mTrackPoints = new ArrayList<>();
         accuracyTextView = findViewById(R.id.accuracyTextView);
         bearingTextView = findViewById(R.id.bearingTextView);
@@ -136,20 +166,45 @@ public class MainActivity extends AppCompatActivity {
         speedTextView = findViewById(R.id.speedTextView);
         averageSpeedTextView = findViewById(R.id.averageSpeedTextView);
         distanceTextView = findViewById(R.id.distanceTextView);
-        counterTextView = findViewById(R.id.counterTextView);
         elapsedTimeTextView = findViewById(R.id.elapsedTimeTextView);
         movingTimeTextView = findViewById(R.id.movingTimeTextView);
         timeTextView = findViewById(R.id.timeTextView);
         latTextView = findViewById(R.id.latTextView);
         lonTextView = findViewById(R.id.lonTextView);
-        Button saveButton = findViewById(R.id.saveButton);
-        saveButton.setOnClickListener(new View.OnClickListener() {
+        mButton1 = findViewById(R.id.button1);
+        mButton2 = findViewById(R.id.button2);
+        init();
+        mButton1.setOnClickListener(new View.OnClickListener() {
 
             @Override
             public void onClick(View v) {
-                writeToFile();
-                mCounter = 0;
-                mTrackPoints.clear();
+                switch (mState) {
+                    case STARTED:
+                        mState = State.STOPPED;
+                        mButton1.setText("RESUME");
+                        mButton2.setEnabled(true);
+                        mButton2.setVisibility(View.VISIBLE);
+                        mButton2.setText("SAVE");
+                        break;
+                    case STOPPED:
+                        mState = State.STARTED;
+                        mButton1.setText("STOP");
+                        mButton2.setEnabled(false);
+                        mButton2.setVisibility(View.INVISIBLE);
+                        break;
+                }
+            }
+        });
+        mButton2.setOnClickListener(new View.OnClickListener() {
+
+            @Override
+            public void onClick(View v) {
+                switch (mState) {
+                    case STOPPED:
+                        writeToFile();
+                        init();
+                        break;
+                }
             }
         });
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
@@ -172,7 +227,8 @@ public class MainActivity extends AppCompatActivity {
                     data.append("    </trkpt>");
                 }
                 data.append("  </trkseg>\n" + "</trk>\n" + "</gpx>");
-                final String fileName = mTrackPoints.get(0).getTime() + ".gpx";
+                mDateNow = mDateFormat.format(new Date());
+                final String fileName = mDateNow + ".gpx";
                 final File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
                 final File file = new File(path, fileName);
                 try {
