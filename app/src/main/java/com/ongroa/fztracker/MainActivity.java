@@ -40,7 +40,7 @@ public class MainActivity extends AppCompatActivity {
 
     private final int PERMISSION_ID_FILE = 43;
     private final int PERMISSION_ID_LOCATION = 44;
-    private final float MIN_SPEED_LIMIT = 2.0f;
+    private final float MIN_SPEED_LIMIT = 4.0f;
     private final float MIN_ACCURACY_LIMIT = 20.0f;
     private State mState;
     private DateFormat mTimeFormat;
@@ -83,6 +83,7 @@ public class MainActivity extends AppCompatActivity {
     private final LocationCallback locationCallback = new LocationCallback() {
         @Override
         public void onLocationResult(LocationResult locationResult) {
+            mCounter++;
             final Location location = locationResult.getLastLocation();
             if (mLastTime == 0) {
                 mLastTime = location.getTime();
@@ -106,7 +107,6 @@ public class MainActivity extends AppCompatActivity {
                         mTotalAscent += mAltitude - lastAltitude;
                     }
                 }
-                mCounter++;
                 mNowAsISO = mDateFormatISO.format(new Date());
                 mTrackPoints.add(new TrackPoint(mNowAsISO, mLatitude, mLongitude));
                 mElapsedTime += deltaTime;
@@ -139,10 +139,10 @@ public class MainActivity extends AppCompatActivity {
         altitudeTextView.setText(String.format("Alt.: %.0f m", mAltitude));
         totalAscentTextView.setText(String.format("Tot. Ascent: %.0f m", mTotalAscent));
         distanceTextView.setText(String.format("Distance: %.2f km", mDistance / 1000.0));
-        elapsedTimeTextView.setText(String.format("Elapsed Time: %.0f s", mElapsedTime / 1000.0));
-        movingTimeTextView.setText(String.format("Moving Time: %.0f s", mMovingTime / 1000.0));
+        elapsedTimeTextView.setText(String.format("Elapsed Time: %s", Util.secondsToHuman(mElapsedTime)));
+        movingTimeTextView.setText(String.format("Moving Time: %s", Util.secondsToHuman(mMovingTime)));
         timeTextView.setText(mNow);
-        averageSpeedTextView.setText(String.format("Average Speed: %.1f km/h", 3.6f * mDistance / (mMovingTime + 1) * 1000.0f));
+        averageSpeedTextView.setText(String.format("Avg Speed: %.1f km/h", 3.6f * mDistance / (mMovingTime + 1) * 1000.0f));
         accuracyTextView.setText(String.format("%.0f m", mAccuracy));
         speedTextView.setText(String.format("Speed: %.1f km/h", mSpeed));
         bearingTextView.setText(String.format("%.0f deg", mBearing));
@@ -174,6 +174,8 @@ public class MainActivity extends AppCompatActivity {
         mButton1 = findViewById(R.id.button1);
         mButton2 = findViewById(R.id.button2);
         init();
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        startLocationClient();
         mButton1.setOnClickListener(new View.OnClickListener() {
 
             @Override
@@ -207,9 +209,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
-        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-
-        getLastLocation();
     }
 
     private void writeToFile() {
@@ -250,7 +249,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @SuppressLint("MissingPermission")
-    private void getLastLocation() {
+    private void startLocationClient() {
         if (checkPermissionsLocation()) {
             if (isLocationEnabled()) {
                 requestNewLocationData();
@@ -272,7 +271,7 @@ public class MainActivity extends AppCompatActivity {
         locationRequest.setFastestInterval(1000);
 
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-        mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
+        mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
     }
 
     private boolean checkPermissionsFile() {
@@ -310,7 +309,7 @@ public class MainActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == PERMISSION_ID_LOCATION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                getLastLocation();
+                startLocationClient();
             }
         } else if (requestCode == PERMISSION_ID_FILE) {
             writeToFile();
@@ -320,11 +319,14 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onResume() {
         super.onResume();
-        getLastLocation();
+        startLocationClient();
     }
 
     @Override
     public void onBackPressed() {
+        if (mState == State.STOPPED) {
+            mFusedLocationClient.removeLocationUpdates(locationCallback);
+        }
         moveTaskToBack(true);
     }
 }

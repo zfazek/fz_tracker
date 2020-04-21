@@ -3,7 +3,6 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:gravity="center"
     android:orientation="vertical">
 
     <TextView
@@ -11,6 +10,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="speed"
+        android:textSize="32dp"
         android:textAppearance="@style/TextAppearance.AppCompat.Large" />
 
     <TextView
@@ -18,6 +18,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="distance"
+        android:textSize="32dp"
         android:textAppearance="@style/TextAppearance.AppCompat.Large" />
 
     <TextView
@@ -25,6 +26,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="moving time"
+        android:textSize="32dp"
         android:textAppearance="@style/TextAppearance.AppCompat.Large" />
 
     <TextView
@@ -32,6 +34,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="average speed"
+        android:textSize="32dp"
         android:textAppearance="@style/TextAppearance.AppCompat.Large" />
 
     <TextView
@@ -39,20 +42,20 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="elapsed time"
+        android:textSize="32dp"
         android:textAppearance="@style/TextAppearance.AppCompat.Large" />
 
-    <LinearLayout
-        xmlns:android="http://schemas.android.com/apk/res/android"
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:orientation="horizontal">
+        android:layout_height="wrap_content">
 
 
         <TextView
             android:id="@+id/altitudeTextView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:padding="10dip"
             android:text="altitude"
             android:textAppearance="@style/TextAppearance.AppCompat.Large" />
 
@@ -60,43 +63,25 @@
             android:id="@+id/totalAscentTextView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:padding="10dip"
             android:text="totalAscent"
             android:textAppearance="@style/TextAppearance.AppCompat.Large" />
 
-    </LinearLayout>
-
-    <LinearLayout
-        xmlns:android="http://schemas.android.com/apk/res/android"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:orientation="horizontal">
-
-        <Button
-            android:id="@+id/button1"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="button1" />
-
-        <Button
-            android:id="@+id/button2"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="button2" />
-
-    </LinearLayout>
+    </RelativeLayout>
 
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
+
 
         <TextView
             android:id="@+id/latTextView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentLeft="true"
-            android:text="latitude"
             android:padding="10dip"
+            android:text="latitude"
             android:textAppearance="@style/TextAppearance.AppCompat.Large" />
 
         <TextView
@@ -104,8 +89,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentRight="true"
-            android:text="longituede"
             android:padding="10dip"
+            android:text="longitude"
             android:textAppearance="@style/TextAppearance.AppCompat.Large" />
 
     </RelativeLayout>
@@ -119,7 +104,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentLeft="true"
-            android:layout_alignParentBottom="true"
             android:text="accuracy"
             android:padding="10dip"
             android:textAppearance="@style/TextAppearance.AppCompat.Large" />
@@ -131,7 +115,6 @@
             android:text="time"
             android:layout_centerHorizontal="true"
             android:padding="10dip"
-            android:layout_alignParentBottom="true"
             android:textAppearance="@style/TextAppearance.AppCompat.Large" />
 
         <TextView
@@ -141,9 +124,31 @@
             android:layout_alignParentRight="true"
             android:text="bearing"
             android:padding="10dip"
-            android:layout_alignParentBottom="true"
             android:textAppearance="@style/TextAppearance.AppCompat.Large" />
 
     </RelativeLayout>
+
+    <LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/button1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="32dp"
+            android:text="button1" />
+
+        <Button
+            android:id="@+id/button2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="32dp"
+            android:text="button2" />
+
+    </LinearLayout>
 
 </LinearLayout>
