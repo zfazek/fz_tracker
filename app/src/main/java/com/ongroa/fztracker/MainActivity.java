@@ -4,12 +4,12 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
@@ -42,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
     private final int PERMISSION_ID_LOCATION = 44;
     private final float MIN_SPEED_LIMIT = 4.0f;
     private final float MIN_ACCURACY_LIMIT = 20.0f;
+    private final long DURATION_BETWEEN_FILE_WRITES = 60000;
     private State mState;
     private DateFormat mTimeFormat;
     private DateFormat mDateFormat;
@@ -52,14 +53,15 @@ public class MainActivity extends AppCompatActivity {
     private long mCounter;
     private float mDistance;
     private long mElapsedTime;
-    private long mLastTime;
+    private long mPrevTime;
     private long mMovingTime;
+    private long mLastSavedTime;
     private double mLatitude;
     private double mLongitude;
     private double mTotalAscent;
     private double mAltitude;
     private String mNow;
-    private String mDateNow;
+    private String mStartTime;
     private String mNowAsISO;
     private ArrayList<TrackPoint> mTrackPoints;
     private FusedLocationProviderClient mFusedLocationClient;
@@ -85,15 +87,15 @@ public class MainActivity extends AppCompatActivity {
         public void onLocationResult(LocationResult locationResult) {
             mCounter++;
             final Location location = locationResult.getLastLocation();
-            if (mLastTime == 0) {
-                mLastTime = location.getTime();
+            if (mPrevTime == 0) {
+                mPrevTime = location.getTime();
             }
             mSpeed = 3.6f * location.getSpeed();
             mAccuracy = location.getAccuracy();
             mBearing = location.getBearing();
             mNow = mTimeFormat.format(new Date());
-            final long deltaTime = location.getTime() - mLastTime;
-            mLastTime = location.getTime();
+            final long deltaTime = location.getTime() - mPrevTime;
+            mPrevTime = location.getTime();
             if (mState == State.STARTED && mLastLocation != null && mAccuracy < MIN_ACCURACY_LIMIT) {
                 if (mSpeed >= MIN_SPEED_LIMIT) {
                     mLatitude = location.getLatitude();
@@ -108,6 +110,10 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
                 mNowAsISO = mDateFormatISO.format(new Date());
+                if (mTrackPoints.isEmpty()) {
+                    mStartTime = mDateFormat.format(new Date());
+                    mLastSavedTime = System.currentTimeMillis();
+                }
                 mTrackPoints.add(new TrackPoint(mNowAsISO, mLatitude, mLongitude));
                 mElapsedTime += deltaTime;
                 mLastLocation = location;
@@ -117,6 +123,9 @@ public class MainActivity extends AppCompatActivity {
             }
             if (mLastLocation == null && mAccuracy < MIN_ACCURACY_LIMIT) {
                 mLastLocation = location;
+            }
+            if (System.currentTimeMillis() - mLastSavedTime > DURATION_BETWEEN_FILE_WRITES && mStartTime != null) {
+                writeToFile();
             }
             draw();
         }
@@ -133,6 +142,7 @@ public class MainActivity extends AppCompatActivity {
         mMovingTime = 0;
         mElapsedTime = 0;
         mTotalAscent = 0;
+        mLastSavedTime = 0;
     }
 
     private void draw() {
@@ -150,9 +160,11 @@ public class MainActivity extends AppCompatActivity {
         lonTextView.setText("" + mLongitude);
     }
 
+    @SuppressLint("SourceLockedOrientationActivity")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
         setContentView(R.layout.activity_main);
         mTimeFormat = new SimpleDateFormat("HH:mm:ss");
         mDateFormat = new SimpleDateFormat("yyyy-MM-dd' 'HH:mm:ss");
@@ -226,19 +238,18 @@ public class MainActivity extends AppCompatActivity {
                     data.append("    </trkpt>");
                 }
                 data.append("  </trkseg>\n" + "</trk>\n" + "</gpx>");
-                mDateNow = mDateFormat.format(new Date());
-                final String fileName = mDateNow + ".gpx";
+                final String fileName = mStartTime + ".gpx";
                 final File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
                 final File file = new File(path, fileName);
                 try {
-                    if (file.createNewFile()) {
-                        FileOutputStream fOut = new FileOutputStream(file);
-                        OutputStreamWriter myOutWriter = new OutputStreamWriter(fOut);
-                        myOutWriter.append(data.toString());
-                        myOutWriter.close();
-                        fOut.flush();
-                        fOut.close();
-                    }
+                    file.createNewFile();
+                    FileOutputStream fOut = new FileOutputStream(file);
+                    OutputStreamWriter myOutWriter = new OutputStreamWriter(fOut);
+                    myOutWriter.append(data.toString());
+                    myOutWriter.close();
+                    fOut.flush();
+                    fOut.close();
+                    mLastSavedTime = System.currentTimeMillis();
                 } catch (Exception e) {
                     Log.e("Exception", "File write failed: " + e.toString());
                 }
