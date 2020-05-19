@@ -7,7 +7,7 @@ import java.util.Date;
 import java.util.TimeZone;
 
 public class Util {
-    public static String secondsToHuman(final long seconds) {
+    public static String millisecondsToHuman(final long seconds) {
         SimpleDateFormat dateFormat;
         if (seconds <= 3600000) {
             dateFormat = new SimpleDateFormat("mm:ss");

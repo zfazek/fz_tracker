@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
@@ -14,6 +15,7 @@ import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -41,7 +43,7 @@ public class MainActivity extends AppCompatActivity {
     private final int PERMISSION_ID_FILE = 43;
     private final int PERMISSION_ID_LOCATION = 44;
     private final float MIN_SPEED_LIMIT = 4.0f;
-    private final float MIN_ACCURACY_LIMIT = 20.0f;
+    private final float MIN_ACCURACY_LIMIT = 25.0f;
     private final long DURATION_BETWEEN_FILE_WRITES = 60000;
     private State mState;
     private DateFormat mTimeFormat;
@@ -81,25 +83,39 @@ public class MainActivity extends AppCompatActivity {
     private TextView lonTextView;
     private Button mButton1;
     private Button mButton2;
+    private LinearLayout bgElement;
 
     private final LocationCallback locationCallback = new LocationCallback() {
         @Override
         public void onLocationResult(LocationResult locationResult) {
             mCounter++;
             final Location location = locationResult.getLastLocation();
+            if (location == null) {
+                return;
+            }
             if (mPrevTime == 0) {
                 mPrevTime = location.getTime();
+                return;
             }
-            mSpeed = 3.6f * location.getSpeed();
             mAccuracy = location.getAccuracy();
-            mBearing = location.getBearing();
+            if (mAccuracy >= MIN_ACCURACY_LIMIT) {
+                bgElement.setBackgroundColor(Color.RED);
+            } else if (mState == State.STOPPED) {
+                bgElement.setBackgroundColor(Color.BLUE);
+            } else {
+                bgElement.setBackgroundColor(Color.WHITE);
+            }
             mNow = mTimeFormat.format(new Date());
             final long deltaTime = location.getTime() - mPrevTime;
             mPrevTime = location.getTime();
+            if (mAccuracy < MIN_ACCURACY_LIMIT) {
+                mSpeed = 3.6f * location.getSpeed();
+                mLatitude = location.getLatitude();
+                mLongitude = location.getLongitude();
+                mBearing = location.getBearing();
+            }
             if (mState == State.STARTED && mLastLocation != null && mAccuracy < MIN_ACCURACY_LIMIT) {
                 if (mSpeed >= MIN_SPEED_LIMIT) {
-                    mLatitude = location.getLatitude();
-                    mLongitude = location.getLongitude();
                     final float dist = location.distanceTo(mLastLocation);
                     mDistance += dist;
                     mMovingTime += deltaTime;
@@ -108,6 +124,8 @@ public class MainActivity extends AppCompatActivity {
                     if (mAltitude > lastAltitude) {
                         mTotalAscent += mAltitude - lastAltitude;
                     }
+                } else {
+                    bgElement.setBackgroundColor(Color.CYAN);
                 }
                 mNowAsISO = mDateFormatISO.format(new Date());
                 if (mTrackPoints.isEmpty()) {
@@ -116,12 +134,8 @@ public class MainActivity extends AppCompatActivity {
                 }
                 mTrackPoints.add(new TrackPoint(mNowAsISO, mLatitude, mLongitude));
                 mElapsedTime += deltaTime;
-                mLastLocation = location;
             }
-            if (mState == State.STOPPED) {
-                mLastLocation = null;
-            }
-            if (mLastLocation == null && mAccuracy < MIN_ACCURACY_LIMIT) {
+            if (mAccuracy < MIN_ACCURACY_LIMIT) {
                 mLastLocation = location;
             }
             if (System.currentTimeMillis() - mLastSavedTime > DURATION_BETWEEN_FILE_WRITES && mStartTime != null) {
@@ -149,10 +163,10 @@ public class MainActivity extends AppCompatActivity {
         altitudeTextView.setText(String.format("Alt.: %.0f m", mAltitude));
         totalAscentTextView.setText(String.format("Tot. Ascent: %.0f m", mTotalAscent));
         distanceTextView.setText(String.format("Distance: %.2f km", mDistance / 1000.0));
-        elapsedTimeTextView.setText(String.format("Elapsed Time: %s", Util.secondsToHuman(mElapsedTime)));
-        movingTimeTextView.setText(String.format("Moving Time: %s", Util.secondsToHuman(mMovingTime)));
+        elapsedTimeTextView.setText(String.format("Elapsed Time: %s", Util.millisecondsToHuman(mElapsedTime)));
+        movingTimeTextView.setText(String.format("Moving Time: %s", Util.millisecondsToHuman(mMovingTime)));
         timeTextView.setText(mNow);
-        averageSpeedTextView.setText(String.format("Avg Speed: %.1f km/h", 3.6f * mDistance / (mMovingTime + 1) * 1000.0f));
+        averageSpeedTextView.setText(String.format("Avg Speed: %.2f km/h", 3.6f * mDistance / (mMovingTime + 1) * 1000.0f));
         accuracyTextView.setText(String.format("%.0f m", mAccuracy));
         speedTextView.setText(String.format("Speed: %.1f km/h", mSpeed));
         bearingTextView.setText(String.format("%.0f deg", mBearing));
@@ -185,6 +199,7 @@ public class MainActivity extends AppCompatActivity {
         lonTextView = findViewById(R.id.lonTextView);
         mButton1 = findViewById(R.id.button1);
         mButton2 = findViewById(R.id.button2);
+        bgElement = (LinearLayout)findViewById(R.id.container);
         init();
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         startLocationClient();
