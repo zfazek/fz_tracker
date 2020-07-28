@@ -42,9 +42,6 @@ public class MainActivity extends AppCompatActivity {
 
     private final int PERMISSION_ID_FILE = 43;
     private final int PERMISSION_ID_LOCATION = 44;
-    private final float MIN_SPEED_LIMIT = 4.0f;
-    private final float MIN_ACCURACY_LIMIT = 25.0f;
-    private final long DURATION_BETWEEN_FILE_WRITES = 60000;
     private State mState;
     private DateFormat mTimeFormat;
     private DateFormat mDateFormat;
@@ -64,7 +61,6 @@ public class MainActivity extends AppCompatActivity {
     private double mAltitude;
     private String mNow;
     private String mStartTime;
-    private String mNowAsISO;
     private ArrayList<TrackPoint> mTrackPoints;
     private FusedLocationProviderClient mFusedLocationClient;
     private Location mLastLocation;
@@ -98,6 +94,7 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
             mAccuracy = location.getAccuracy();
+            float MIN_ACCURACY_LIMIT = 25.0f;
             if (mAccuracy >= MIN_ACCURACY_LIMIT) {
                 bgElement.setBackgroundColor(Color.RED);
             } else if (mState == State.STOPPED) {
@@ -110,12 +107,18 @@ public class MainActivity extends AppCompatActivity {
             mPrevTime = location.getTime();
             if (mAccuracy < MIN_ACCURACY_LIMIT) {
                 mSpeed = 3.6f * location.getSpeed();
-                mLatitude = location.getLatitude();
-                mLongitude = location.getLongitude();
-                mBearing = location.getBearing();
+                if (mState == State.STOPPED) {
+                    mLatitude = location.getLatitude();
+                    mLongitude = location.getLongitude();
+                    mBearing = location.getBearing();
+                }
             }
             if (mState == State.STARTED && mLastLocation != null && mAccuracy < MIN_ACCURACY_LIMIT) {
+                float MIN_SPEED_LIMIT = 4.0f;
                 if (mSpeed >= MIN_SPEED_LIMIT) {
+                    mLatitude = location.getLatitude();
+                    mLongitude = location.getLongitude();
+                    mBearing = location.getBearing();
                     final float dist = location.distanceTo(mLastLocation);
                     mDistance += dist;
                     mMovingTime += deltaTime;
@@ -127,17 +130,20 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     bgElement.setBackgroundColor(Color.CYAN);
                 }
-                mNowAsISO = mDateFormatISO.format(new Date());
+                String mNowAsISO = mDateFormatISO.format(new Date());
                 if (mTrackPoints.isEmpty()) {
                     mStartTime = mDateFormat.format(new Date());
                     mLastSavedTime = System.currentTimeMillis();
                 }
-                mTrackPoints.add(new TrackPoint(mNowAsISO, mLatitude, mLongitude));
+                if (mLatitude > 0 && mLongitude > 0) {
+                    mTrackPoints.add(new TrackPoint(mNowAsISO, mLatitude, mLongitude));
+                }
                 mElapsedTime += deltaTime;
             }
             if (mAccuracy < MIN_ACCURACY_LIMIT) {
                 mLastLocation = location;
             }
+            long DURATION_BETWEEN_FILE_WRITES = 60000;
             if (System.currentTimeMillis() - mLastSavedTime > DURATION_BETWEEN_FILE_WRITES && mStartTime != null) {
                 writeToFile();
             }
@@ -150,6 +156,7 @@ public class MainActivity extends AppCompatActivity {
         mButton1.setText("START");
         mButton2.setEnabled(false);
         mButton2.setVisibility(View.INVISIBLE);
+        mPrevTime = 0;
         mCounter = 0;
         mTrackPoints.clear();
         mDistance = 0;
@@ -157,18 +164,20 @@ public class MainActivity extends AppCompatActivity {
         mElapsedTime = 0;
         mTotalAscent = 0;
         mLastSavedTime = 0;
+        mLatitude = 0;
+        mLongitude = 0;
     }
 
     private void draw() {
-        altitudeTextView.setText(String.format("Alt.: %.0f m", mAltitude));
-        totalAscentTextView.setText(String.format("Tot. Ascent: %.0f m", mTotalAscent));
-        distanceTextView.setText(String.format("Distance: %.2f km", mDistance / 1000.0));
-        elapsedTimeTextView.setText(String.format("Elapsed Time: %s", Util.millisecondsToHuman(mElapsedTime)));
-        movingTimeTextView.setText(String.format("Moving Time: %s", Util.millisecondsToHuman(mMovingTime)));
+        altitudeTextView.setText(String.format("%.0f m", mAltitude));
+        totalAscentTextView.setText(String.format("%.0f m", mTotalAscent));
+        distanceTextView.setText(String.format("%.2f km", mDistance / 1000.0));
+        elapsedTimeTextView.setText(String.format("%s", Util.millisecondsToHuman(mElapsedTime)));
+        movingTimeTextView.setText(String.format("%s", Util.millisecondsToHuman(mMovingTime)));
         timeTextView.setText(mNow);
-        averageSpeedTextView.setText(String.format("Avg Speed: %.2f km/h", 3.6f * mDistance / (mMovingTime + 1) * 1000.0f));
+        averageSpeedTextView.setText(String.format("%.2f", 3.6f * mDistance / (mMovingTime + 1) * 1000.0f));
         accuracyTextView.setText(String.format("%.0f m", mAccuracy));
-        speedTextView.setText(String.format("Speed: %.1f km/h", mSpeed));
+        speedTextView.setText(String.format("%.1f", mSpeed));
         bearingTextView.setText(String.format("%.0f deg", mBearing));
         latTextView.setText("" + mLatitude);
         lonTextView.setText("" + mLongitude);
@@ -228,49 +237,48 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onClick(View v) {
-                switch (mState) {
-                    case STOPPED:
-                        writeToFile();
-                        init();
-                        break;
+                if (mState == State.STOPPED) {
+                    writeToFile();
+                    init();
                 }
             }
         });
     }
 
     private void writeToFile() {
-        if (!mTrackPoints.isEmpty()) {
-            if (checkPermissionsFile()) {
-                StringBuilder data = new StringBuilder("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n" +
-                        "<gpx version=\"1.1\" creator=\"FZ Tracker\" xmlns=\"http://www.topografix.com/GPX/1/1\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">\n" +
-                        "<trk>\n" +
-                        "<name>Ride</name>\n" +
-                        "<type>1</type>\n" +
-                        "  <trkseg>\n");
-                for (TrackPoint trkpt : mTrackPoints) {
-                    data.append(String.format("    <trkpt lat=\"%.8f\" lon=\"%.8f\">\n", trkpt.getLat(), trkpt.getLon()));
-                    data.append(String.format("      <time>%s</time>\n", trkpt.getTime()));
-                    data.append("    </trkpt>");
-                }
-                data.append("  </trkseg>\n" + "</trk>\n" + "</gpx>");
-                final String fileName = mStartTime + ".gpx";
-                final File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-                final File file = new File(path, fileName);
-                try {
-                    file.createNewFile();
-                    FileOutputStream fOut = new FileOutputStream(file);
-                    OutputStreamWriter myOutWriter = new OutputStreamWriter(fOut);
-                    myOutWriter.append(data.toString());
-                    myOutWriter.close();
-                    fOut.flush();
-                    fOut.close();
-                    mLastSavedTime = System.currentTimeMillis();
-                } catch (Exception e) {
-                    Log.e("Exception", "File write failed: " + e.toString());
-                }
-            } else {
-                requestPermissionsFile();
+        if (mTrackPoints.isEmpty()) {
+            return;
+        }
+        if (checkPermissionsFile()) {
+            StringBuilder data = new StringBuilder("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n" +
+                    "<gpx version=\"1.1\" creator=\"FZ Tracker\" xmlns=\"http://www.topografix.com/GPX/1/1\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">\n" +
+                    "<trk>\n" +
+                    "<name>Ride</name>\n" +
+                    "<type>1</type>\n" +
+                    "  <trkseg>\n");
+            for (TrackPoint trkpt : mTrackPoints) {
+                data.append(String.format("    <trkpt lat=\"%.8f\" lon=\"%.8f\">\n", trkpt.getLat(), trkpt.getLon()));
+                data.append(String.format("      <time>%s</time>\n", trkpt.getTime()));
+                data.append("    </trkpt>\n");
             }
+            data.append("  </trkseg>\n" + "</trk>\n" + "</gpx>");
+            final String fileName = mStartTime + ".gpx";
+            final File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+            final File file = new File(path, fileName);
+            try {
+                file.createNewFile();
+                FileOutputStream fOut = new FileOutputStream(file);
+                OutputStreamWriter myOutWriter = new OutputStreamWriter(fOut);
+                myOutWriter.append(data.toString());
+                myOutWriter.close();
+                fOut.flush();
+                fOut.close();
+                mLastSavedTime = System.currentTimeMillis();
+            } catch (Exception e) {
+                Log.e("Exception", "File write failed: " + e.toString());
+            }
+        } else {
+            requestPermissionsFile();
         }
     }
 
