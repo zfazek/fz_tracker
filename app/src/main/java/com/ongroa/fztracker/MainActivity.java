@@ -23,6 +23,13 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
+import com.dsi.ant.plugins.antplus.pcc.AntPlusBikeCadencePcc;
+import com.dsi.ant.plugins.antplus.pcc.AntPlusBikePowerPcc;
+import com.dsi.ant.plugins.antplus.pcc.defines.DeviceState;
+import com.dsi.ant.plugins.antplus.pcc.defines.EventFlag;
+import com.dsi.ant.plugins.antplus.pcc.defines.RequestAccessResult;
+import com.dsi.ant.plugins.antplus.pccbase.AntPluginPcc;
+import com.dsi.ant.plugins.antplus.pccbase.PccReleaseHandle;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -32,10 +39,12 @@ import com.google.android.gms.location.LocationServices;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
+import java.math.BigDecimal;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.EnumSet;
 import java.util.TimeZone;
 
 public class MainActivity extends AppCompatActivity {
@@ -60,6 +69,8 @@ public class MainActivity extends AppCompatActivity {
     private long mPrevTime;
     private long mMovingTime;
     private long mLastSavedTime;
+    private long mPower;
+    private long mCadence;
     private double mLatitude;
     private double mLongitude;
     private double mTotalAscent;
@@ -82,9 +93,15 @@ public class MainActivity extends AppCompatActivity {
     private TextView timeTextView;
     private TextView latTextView;
     private TextView lonTextView;
+    private TextView powerTextView;
+    private TextView cadenceTextView;
+    private TextView debugTextView;
     private Button mButton1;
     private Button mButton2;
     private LinearLayout bgElement;
+
+    AntPlusBikePowerPcc pwrPcc = null;
+    PccReleaseHandle<AntPlusBikePowerPcc> pwrReleaseHandle = null;
 
     private final LocationCallback locationCallback = new LocationCallback() {
         @Override
@@ -145,6 +162,9 @@ public class MainActivity extends AppCompatActivity {
                 }
                 if (mLatitude > 0 && mLongitude > 0) {
                     mTrackPoints.add(new TrackPoint(mNowAsISO, mLatitude, mLongitude));
+                    if (pwrPcc != null) {
+                        mTrackPoints.get(mTrackPoints.size() - 1).setCadenceAndPower(mCadence, mPower);
+                    }
                 }
                 mElapsedTime += deltaTime;
             }
@@ -177,6 +197,8 @@ public class MainActivity extends AppCompatActivity {
         mLastSavedTime = 0;
         mLatitude = 0;
         mLongitude = 0;
+        mCadence = 0;
+        mPower = 0;
     }
 
     private void draw() {
@@ -192,6 +214,17 @@ public class MainActivity extends AppCompatActivity {
         bearingTextView.setText(String.format("%.0f deg", mBearing));
         latTextView.setText("" + mLatitude);
         lonTextView.setText("" + mLongitude);
+        if (pwrPcc == null) {
+            powerTextView.setText("---");
+            cadenceTextView.setText("---");
+        } else {
+            powerTextView.setText("" + mPower);
+            cadenceTextView.setText("" + mCadence);
+        }
+//        if (pwrPcc == null)
+//            debugTextView.setText("" + mPower + " " + mCadence);
+//        else
+//            debugTextView.setText("connected: " + mPower + " " + mCadence);
     }
 
     @SuppressLint("SourceLockedOrientationActivity")
@@ -217,9 +250,12 @@ public class MainActivity extends AppCompatActivity {
         timeTextView = findViewById(R.id.timeTextView);
         latTextView = findViewById(R.id.latTextView);
         lonTextView = findViewById(R.id.lonTextView);
+        powerTextView = findViewById(R.id.powerTextView);
+        cadenceTextView = findViewById(R.id.cadenceTextView);
+//        debugTextView = findViewById(R.id.debugTextView);
         mButton1 = findViewById(R.id.button1);
         mButton2 = findViewById(R.id.button2);
-        bgElement = (LinearLayout)findViewById(R.id.container);
+        bgElement = (LinearLayout) findViewById(R.id.container);
         init();
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         startLocationClient();
@@ -272,6 +308,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+        resetPcc();
     }
 
     private void writeToFile() {
@@ -293,6 +330,10 @@ public class MainActivity extends AppCompatActivity {
             for (TrackPoint trkpt : mTrackPoints) {
                 data.append(String.format("    <trkpt lat=\"%.8f\" lon=\"%.8f\">\n", trkpt.getLat(), trkpt.getLon()));
                 data.append(String.format("      <time>%s</time>\n", trkpt.getTime()));
+                if (pwrPcc != null) {
+                    data.append(String.format("<extensions><cadence>%d</cadence><power>%d</power></extensions>\n",
+                            trkpt.getCadence(), trkpt.getPower()));
+                }
                 data.append("    </trkpt>\n");
             }
             data.append("  </trkseg>\n" + "</trk>\n" + "</gpx>");
@@ -308,8 +349,6 @@ public class MainActivity extends AppCompatActivity {
                 fOut.flush();
                 fOut.close();
                 mLastSavedTime = System.currentTimeMillis();
-                Log.i("sdfdsfds", file.getAbsolutePath());
-                Log.i("sdfdsfds", mTrackPoints.size() + "");
             } catch (Exception e) {
                 Log.e("Exception", "File write failed: " + e.toString());
             }
@@ -398,5 +437,73 @@ public class MainActivity extends AppCompatActivity {
             mFusedLocationClient.removeLocationUpdates(locationCallback);
         }
         moveTaskToBack(true);
+    }
+
+    private void resetPcc() {
+        if (pwrReleaseHandle != null) {
+            pwrReleaseHandle.close();
+        }
+        pwrReleaseHandle = AntPlusBikePowerPcc.requestAccess(getApplicationContext(),
+                16514,
+                0,
+                mResultReceiver,
+                mDeviceStateChangeReceiver);
+    }
+
+    AntPluginPcc.IPluginAccessResultReceiver<AntPlusBikePowerPcc> mResultReceiver = new AntPluginPcc.IPluginAccessResultReceiver<AntPlusBikePowerPcc>() {
+
+        @Override
+        public void onResultReceived(AntPlusBikePowerPcc antPlusBikePowerPcc, RequestAccessResult requestAccessResult, DeviceState deviceState) {
+            switch (requestAccessResult) {
+                case SUCCESS:
+                    Log.i("result", "SUCCESS");
+                    pwrPcc = antPlusBikePowerPcc;
+                    subscribeToEvents();
+                    break;
+                case SEARCH_TIMEOUT:
+                    Log.i("result", "SEARCH_TIMEOUT");
+                    pwrReleaseHandle = AntPlusBikePowerPcc.requestAccess(getApplicationContext(),
+                            16514,
+                            0,
+                            mResultReceiver,
+                            mDeviceStateChangeReceiver);
+                    break;
+            }
+        }
+    };
+
+    AntPluginPcc.IDeviceStateChangeReceiver mDeviceStateChangeReceiver = new AntPluginPcc.IDeviceStateChangeReceiver() {
+
+        @Override
+        public void onDeviceStateChange(final DeviceState newDeviceState) {
+            if (newDeviceState == DeviceState.DEAD) {
+                Log.i("state", "newDeviceState: " + newDeviceState);
+                pwrReleaseHandle = null;
+            }
+        }
+    };
+
+    private void subscribeToEvents() {
+
+        pwrPcc.subscribeCalculatedPowerEvent(new AntPlusBikePowerPcc.ICalculatedPowerReceiver() {
+            @Override
+            public void onNewCalculatedPower(final long estTimestamp, final EnumSet<EventFlag> eventFlags,
+                                             final AntPlusBikePowerPcc.DataSource dataSource,
+                                             final BigDecimal calculatedPower) {
+                Log.i("power", "calculatedPower: " + String.valueOf(calculatedPower));
+                mPower = calculatedPower.longValue();
+            }
+        });
+
+        pwrPcc.subscribeCalculatedCrankCadenceEvent(new AntPlusBikePowerPcc.ICalculatedCrankCadenceReceiver() {
+
+            @Override
+            public void onNewCalculatedCrankCadence(final long estTimestamp, final EnumSet<EventFlag> eventFlags,
+                                                    final AntPlusBikePowerPcc.DataSource dataSource,
+                                                    final BigDecimal calculatedCrankCadence) {
+                Log.i("cadence", "calculatedCrankCadence: " + String.valueOf(calculatedCrankCadence));
+                mCadence = calculatedCrankCadence.longValue();
+            }
+        });
     }
 }
