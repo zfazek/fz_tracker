@@ -42,7 +42,12 @@ public class MainActivity extends AppCompatActivity {
 
     private final int PERMISSION_ID_FILE = 43;
     private final int PERMISSION_ID_LOCATION = 44;
+    private final float MIN_SPEED_LIMIT_RIDE = 4.0f;
+    private final float MIN_SPEED_LIMIT_RUN = 1.5f;
+    private final long DURATION_BETWEEN_FILE_WRITES = 60000;
+    private float mMinSpeedLimit;
     private State mState;
+    private SportType mSportType;
     private DateFormat mTimeFormat;
     private DateFormat mDateFormat;
     private DateFormat mDateFormatISO;
@@ -97,10 +102,14 @@ public class MainActivity extends AppCompatActivity {
             float MIN_ACCURACY_LIMIT = 25.0f;
             if (mAccuracy >= MIN_ACCURACY_LIMIT) {
                 bgElement.setBackgroundColor(Color.RED);
-            } else if (mState == State.STOPPED) {
+            } else if (mState == State.INIT || mState == State.STOPPED) {
                 bgElement.setBackgroundColor(Color.BLUE);
             } else {
-                bgElement.setBackgroundColor(Color.WHITE);
+                if (mSportType == SportType.RIDE) {
+                    bgElement.setBackgroundColor(Color.WHITE);
+                } else {
+                    bgElement.setBackgroundColor(Color.YELLOW);
+                }
             }
             mNow = mTimeFormat.format(new Date());
             final long deltaTime = location.getTime() - mPrevTime;
@@ -114,8 +123,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
             if (mState == State.STARTED && mLastLocation != null && mAccuracy < MIN_ACCURACY_LIMIT) {
-                float MIN_SPEED_LIMIT = 4.0f;
-                if (mSpeed >= MIN_SPEED_LIMIT) {
+                if (mSpeed >= mMinSpeedLimit) {
                     mLatitude = location.getLatitude();
                     mLongitude = location.getLongitude();
                     mBearing = location.getBearing();
@@ -143,7 +151,6 @@ public class MainActivity extends AppCompatActivity {
             if (mAccuracy < MIN_ACCURACY_LIMIT) {
                 mLastLocation = location;
             }
-            long DURATION_BETWEEN_FILE_WRITES = 60000;
             if (System.currentTimeMillis() - mLastSavedTime > DURATION_BETWEEN_FILE_WRITES && mStartTime != null) {
                 writeToFile();
             }
@@ -152,10 +159,14 @@ public class MainActivity extends AppCompatActivity {
     };
 
     private void init() {
-        mState = State.STOPPED;
-        mButton1.setText("START");
-        mButton2.setEnabled(false);
-        mButton2.setVisibility(View.INVISIBLE);
+        mState = State.INIT;
+        mSportType = SportType.RIDE;
+        mButton1.setText("START RIDE");
+        mButton2.setText("START RUN");
+        mButton1.setEnabled(true);
+        mButton1.setVisibility(View.VISIBLE);
+        mButton2.setEnabled(true);
+        mButton2.setVisibility(View.VISIBLE);
         mPrevTime = 0;
         mCounter = 0;
         mTrackPoints.clear();
@@ -217,6 +228,14 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 switch (mState) {
+                    case INIT:
+                        mState = State.STARTED;
+                        mSportType = SportType.RIDE;
+                        mMinSpeedLimit = MIN_SPEED_LIMIT_RIDE;
+                        mButton1.setText("STOP");
+                        mButton2.setEnabled(false);
+                        mButton2.setVisibility(View.INVISIBLE);
+                        break;
                     case STARTED:
                         mState = State.STOPPED;
                         mButton1.setText("RESUME");
@@ -237,9 +256,19 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onClick(View v) {
-                if (mState == State.STOPPED) {
-                    writeToFile();
-                    init();
+                switch (mState) {
+                    case INIT:
+                        mState = State.STARTED;
+                        mSportType = SportType.RUN;
+                        mMinSpeedLimit = MIN_SPEED_LIMIT_RUN;
+                        mButton1.setText("STOP");
+                        mButton2.setEnabled(false);
+                        mButton2.setVisibility(View.INVISIBLE);
+                        break;
+                    case STOPPED:
+                        writeToFile();
+                        init();
+                        break;
                 }
             }
         });
@@ -252,10 +281,15 @@ public class MainActivity extends AppCompatActivity {
         if (checkPermissionsFile()) {
             StringBuilder data = new StringBuilder("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n" +
                     "<gpx version=\"1.1\" creator=\"FZ Tracker\" xmlns=\"http://www.topografix.com/GPX/1/1\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">\n" +
-                    "<trk>\n" +
-                    "<name>Ride</name>\n" +
-                    "<type>1</type>\n" +
-                    "  <trkseg>\n");
+                    "<trk>\n");
+//            if (mSportType == SportType.RIDE) {
+//                data.append("<name>Ride</name>\n" +
+//                        "<type>1</type>\n");
+//            } else if (mSportType == SportType.RUN) {
+//                data.append("<name>Run</name>\n" +
+//                        "<type>9</type>\n");
+//            }
+            data.append("  <trkseg>\n");
             for (TrackPoint trkpt : mTrackPoints) {
                 data.append(String.format("    <trkpt lat=\"%.8f\" lon=\"%.8f\">\n", trkpt.getLat(), trkpt.getLon()));
                 data.append(String.format("      <time>%s</time>\n", trkpt.getTime()));
@@ -274,6 +308,8 @@ public class MainActivity extends AppCompatActivity {
                 fOut.flush();
                 fOut.close();
                 mLastSavedTime = System.currentTimeMillis();
+                Log.i("sdfdsfds", file.getAbsolutePath());
+                Log.i("sdfdsfds", mTrackPoints.size() + "");
             } catch (Exception e) {
                 Log.e("Exception", "File write failed: " + e.toString());
             }

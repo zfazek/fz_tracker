@@ -285,6 +285,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center"
+        android:padding="50dip"
         android:orientation="horizontal">
 
         <Button
@@ -293,7 +294,7 @@
             android:layout_weight="0.5"
             android:layout_height="wrap_content"
             android:text="button1"
-            android:textSize="40dp" />
+            android:textSize="24dp" />
 
         <Button
             android:id="@+id/button2"
@@ -301,7 +302,7 @@
             android:layout_weight="0.5"
             android:layout_height="wrap_content"
             android:text="button2"
-            android:textSize="40dp" />
+            android:textSize="24dp" />
 
     </LinearLayout>
 
