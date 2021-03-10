@@ -88,6 +88,7 @@ public class MainActivity extends AppCompatActivity {
         bgElement = (LinearLayout) findViewById(R.id.container);
         timer = new Timer();
         timerTask = new TimerTask() {
+
             @Override
             public void run() {
                 mGuiHandler.post(new Runnable() {
@@ -230,15 +231,18 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onResume() {
         super.onResume();
-//        startLocationClient();
     }
 
     @Override
     public void onBackPressed() {
-//        if (mState == State.STOPPED) {
-//            mFusedLocationClient.removeLocationUpdates(locationCallback);
-//        }
-//        moveTaskToBack(true);
+        moveTaskToBack(true);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        Intent intent = new Intent(this, LocUpdaterService.class);
+        stopService(intent);
     }
 
     void draw() {

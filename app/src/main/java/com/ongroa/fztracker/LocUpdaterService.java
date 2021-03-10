@@ -69,6 +69,11 @@ public class LocUpdaterService extends Service {
         resetPcc();
     }
 
+    @Override
+    public void onDestroy() {
+        mFusedLocationClient.removeLocationUpdates(locationCallback);
+    }
+
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
