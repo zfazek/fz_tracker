@@ -53,7 +53,6 @@ public class MainActivity extends AppCompatActivity {
     private final int PERMISSION_ID_LOCATION = 44;
     private final float MIN_SPEED_LIMIT_RIDE = 4.0f;
     private final float MIN_SPEED_LIMIT_RUN = 1.5f;
-    private final long DURATION_BETWEEN_FILE_WRITES = 60000;
     private float mMinSpeedLimit;
     private State mState;
     private SportType mSportType;
@@ -171,6 +170,7 @@ public class MainActivity extends AppCompatActivity {
             if (mAccuracy < MIN_ACCURACY_LIMIT) {
                 mLastLocation = location;
             }
+            long DURATION_BETWEEN_FILE_WRITES = 60000;
             if (System.currentTimeMillis() - mLastSavedTime > DURATION_BETWEEN_FILE_WRITES && mStartTime != null) {
                 writeToFile();
             }
@@ -185,8 +185,8 @@ public class MainActivity extends AppCompatActivity {
         mButton2.setText("START RUN");
         mButton1.setEnabled(true);
         mButton1.setVisibility(View.VISIBLE);
-        mButton2.setEnabled(true);
-        mButton2.setVisibility(View.VISIBLE);
+        mButton2.setEnabled(false);
+        mButton2.setVisibility(View.INVISIBLE);
         mPrevTime = 0;
         mCounter = 0;
         mTrackPoints.clear();
@@ -257,10 +257,10 @@ public class MainActivity extends AppCompatActivity {
         mButton2 = findViewById(R.id.button2);
         bgElement = (LinearLayout) findViewById(R.id.container);
         init();
-        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         startLocationClient();
         mButton1.setOnClickListener(new View.OnClickListener() {
 
+            @SuppressLint("SetTextI18n")
             @Override
             public void onClick(View v) {
                 switch (mState) {
@@ -484,7 +484,6 @@ public class MainActivity extends AppCompatActivity {
     };
 
     private void subscribeToEvents() {
-
         pwrPcc.subscribeCalculatedPowerEvent(new AntPlusBikePowerPcc.ICalculatedPowerReceiver() {
             @Override
             public void onNewCalculatedPower(final long estTimestamp, final EnumSet<EventFlag> eventFlags,
