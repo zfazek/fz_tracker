@@ -23,11 +23,10 @@
         </activity>
 
         <service
-            android:name=".LocationUpdatesService"
+            android:name=".LocUpdaterService"
             android:enabled="true"
             android:exported="true"
-            android:foregroundServiceType="location" />
-
+            android:foregroundServiceType="location"/>
     </application>
 
 </manifest>

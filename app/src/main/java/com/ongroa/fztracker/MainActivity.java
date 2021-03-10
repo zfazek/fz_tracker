@@ -6,11 +6,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
-import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
@@ -23,209 +22,44 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
-import com.dsi.ant.plugins.antplus.pcc.AntPlusBikeCadencePcc;
-import com.dsi.ant.plugins.antplus.pcc.AntPlusBikePowerPcc;
-import com.dsi.ant.plugins.antplus.pcc.defines.DeviceState;
-import com.dsi.ant.plugins.antplus.pcc.defines.EventFlag;
-import com.dsi.ant.plugins.antplus.pcc.defines.RequestAccessResult;
-import com.dsi.ant.plugins.antplus.pccbase.AntPluginPcc;
-import com.dsi.ant.plugins.antplus.pccbase.PccReleaseHandle;
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationCallback;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationResult;
-import com.google.android.gms.location.LocationServices;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
-import java.math.BigDecimal;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.EnumSet;
-import java.util.TimeZone;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class MainActivity extends AppCompatActivity {
 
-    private final int PERMISSION_ID_FILE = 43;
-    private final int PERMISSION_ID_LOCATION = 44;
-    private final float MIN_SPEED_LIMIT_RIDE = 4.0f;
-    private final float MIN_SPEED_LIMIT_RUN = 1.5f;
-    private float mMinSpeedLimit;
-    private State mState;
-    private SportType mSportType;
-    private DateFormat mTimeFormat;
-    private DateFormat mDateFormat;
-    private DateFormat mDateFormatISO;
-    private float mSpeed;
-    private float mAccuracy;
-    private float mBearing;
-    private long mCounter;
-    private float mDistance;
-    private long mElapsedTime;
-    private long mPrevTime;
-    private long mMovingTime;
-    private long mLastSavedTime;
-    private long mPower;
-    private long mCadence;
-    private double mLatitude;
-    private double mLongitude;
-    private double mTotalAscent;
-    private double mAltitude;
-    private String mNow;
-    private String mStartTime;
-    private ArrayList<TrackPoint> mTrackPoints;
-    private FusedLocationProviderClient mFusedLocationClient;
-    private Location mLastLocation;
-    private TextView speedTextView;
-    private TextView averageSpeedTextView;
-    private TextView distanceTextView;
-    private TextView elapsedTimeTextView;
-    private TextView movingTimeTextView;
-    private TextView accuracyTextView;
-    private TextView altitudeTextView;
-    private TextView totalAscentTextView;
-    private TextView bearingTextView;
-    private TextView counterTextView;
-    private TextView timeTextView;
-    private TextView latTextView;
-    private TextView lonTextView;
-    private TextView powerTextView;
-    private TextView cadenceTextView;
-    private TextView debugTextView;
-    private Button mButton1;
-    private Button mButton2;
-    private LinearLayout bgElement;
+    Timer timer;
+    TimerTask timerTask;
 
-    AntPlusBikePowerPcc pwrPcc = null;
-    PccReleaseHandle<AntPlusBikePowerPcc> pwrReleaseHandle = null;
+    final int PERMISSION_ID_FILE = 43;
+    final int PERMISSION_ID_LOCATION = 44;
 
-    private final LocationCallback locationCallback = new LocationCallback() {
-        @Override
-        public void onLocationResult(LocationResult locationResult) {
-            mCounter++;
-            final Location location = locationResult.getLastLocation();
-            if (location == null) {
-                return;
-            }
-            if (mPrevTime == 0) {
-                mPrevTime = location.getTime();
-                return;
-            }
-            mAccuracy = location.getAccuracy();
-            float MIN_ACCURACY_LIMIT = 25.0f;
-            if (mAccuracy >= MIN_ACCURACY_LIMIT) {
-                bgElement.setBackgroundColor(Color.RED);
-            } else if (mState == State.INIT || mState == State.STOPPED) {
-                bgElement.setBackgroundColor(Color.BLUE);
-            } else {
-                if (mSportType == SportType.RIDE) {
-                    bgElement.setBackgroundColor(Color.WHITE);
-                } else {
-                    bgElement.setBackgroundColor(Color.YELLOW);
-                }
-            }
-            mNow = mTimeFormat.format(new Date());
-            final long deltaTime = location.getTime() - mPrevTime;
-            mPrevTime = location.getTime();
-            if (mAccuracy < MIN_ACCURACY_LIMIT) {
-                mSpeed = 3.6f * location.getSpeed();
-                if (mState == State.STOPPED) {
-                    mLatitude = location.getLatitude();
-                    mLongitude = location.getLongitude();
-                    mBearing = location.getBearing();
-                }
-            }
-            if (mState == State.STARTED && mLastLocation != null && mAccuracy < MIN_ACCURACY_LIMIT) {
-                if (mSpeed >= mMinSpeedLimit) {
-                    mLatitude = location.getLatitude();
-                    mLongitude = location.getLongitude();
-                    mBearing = location.getBearing();
-                    final float dist = location.distanceTo(mLastLocation);
-                    mDistance += dist;
-                    mMovingTime += deltaTime;
-                    mAltitude = location.getAltitude();
-                    final double lastAltitude = mLastLocation.getAltitude();
-                    if (mAltitude > lastAltitude) {
-                        mTotalAscent += mAltitude - lastAltitude;
-                    }
-                } else {
-                    bgElement.setBackgroundColor(Color.CYAN);
-                }
-                String mNowAsISO = mDateFormatISO.format(new Date());
-                if (mTrackPoints.isEmpty()) {
-                    mStartTime = mDateFormat.format(new Date());
-                    mLastSavedTime = System.currentTimeMillis();
-                }
-                if (mLatitude > 0 && mLongitude > 0) {
-                    mTrackPoints.add(new TrackPoint(mNowAsISO, mLatitude, mLongitude));
-                    if (pwrPcc != null) {
-                        mTrackPoints.get(mTrackPoints.size() - 1).setCadenceAndPower(mCadence, mPower);
-                    }
-                }
-                mElapsedTime += deltaTime;
-            }
-            if (mAccuracy < MIN_ACCURACY_LIMIT) {
-                mLastLocation = location;
-            }
-            long DURATION_BETWEEN_FILE_WRITES = 60000;
-            if (System.currentTimeMillis() - mLastSavedTime > DURATION_BETWEEN_FILE_WRITES && mStartTime != null) {
-                writeToFile();
-            }
-            draw();
-        }
-    };
+    final float MIN_SPEED_LIMIT_RIDE = 4.0f;
+    final float MIN_SPEED_LIMIT_RUN = 1.5f;
 
-    private void init() {
-        mState = State.INIT;
-        mSportType = SportType.RIDE;
-        mButton1.setText("START RIDE");
-        mButton2.setText("START RUN");
-        mButton1.setEnabled(true);
-        mButton1.setVisibility(View.VISIBLE);
-        mButton2.setEnabled(false);
-        mButton2.setVisibility(View.INVISIBLE);
-        mPrevTime = 0;
-        mCounter = 0;
-        mTrackPoints.clear();
-        mDistance = 0;
-        mMovingTime = 0;
-        mElapsedTime = 0;
-        mTotalAscent = 0;
-        mLastSavedTime = 0;
-        mLatitude = 0;
-        mLongitude = 0;
-        mCadence = 0;
-        mPower = 0;
-    }
-
-    private void draw() {
-        altitudeTextView.setText(String.format("%.0f m", mAltitude));
-        totalAscentTextView.setText(String.format("%.0f m", mTotalAscent));
-        distanceTextView.setText(String.format("%.2f km", mDistance / 1000.0));
-        elapsedTimeTextView.setText(String.format("%s", Util.millisecondsToHuman(mElapsedTime)));
-        movingTimeTextView.setText(String.format("%s", Util.millisecondsToHuman(mMovingTime)));
-        timeTextView.setText(mNow);
-        averageSpeedTextView.setText(String.format("%.2f", 3.6f * mDistance / (mMovingTime + 1) * 1000.0f));
-        accuracyTextView.setText(String.format("%.0f m", mAccuracy));
-        speedTextView.setText(String.format("%.1f", mSpeed));
-        bearingTextView.setText(String.format("%.0f deg", mBearing));
-        latTextView.setText("" + mLatitude);
-        lonTextView.setText("" + mLongitude);
-        if (pwrPcc == null) {
-            powerTextView.setText("---");
-            cadenceTextView.setText("---");
-        } else {
-            powerTextView.setText("" + mPower);
-            cadenceTextView.setText("" + mCadence);
-        }
-//        if (pwrPcc == null)
-//            debugTextView.setText("" + mPower + " " + mCadence);
-//        else
-//            debugTextView.setText("connected: " + mPower + " " + mCadence);
-    }
+    TextView speedTextView;
+    TextView averageSpeedTextView;
+    TextView distanceTextView;
+    TextView elapsedTimeTextView;
+    TextView movingTimeTextView;
+    TextView accuracyTextView;
+    TextView altitudeTextView;
+    TextView totalAscentTextView;
+    TextView bearingTextView;
+    TextView counterTextView;
+    TextView timeTextView;
+    TextView latTextView;
+    TextView lonTextView;
+    TextView powerTextView;
+    TextView cadenceTextView;
+    TextView debugTextView;
+    Button mButton1;
+    Button mButton2;
+    LinearLayout bgElement;
+    Handler mGuiHandler = new Handler();
 
     @SuppressLint("SourceLockedOrientationActivity")
     @Override
@@ -233,11 +67,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
         setContentView(R.layout.activity_main);
-        mTimeFormat = new SimpleDateFormat("HH:mm:ss");
-        mDateFormat = new SimpleDateFormat("yyyy-MM-dd' 'HH:mm:ss");
-        mDateFormatISO = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-        mDateFormatISO.setTimeZone(TimeZone.getTimeZone("UTC"));
-        mTrackPoints = new ArrayList<>();
+        Data.mTrackPoints = new ArrayList<>();
         accuracyTextView = findViewById(R.id.accuracyTextView);
         bearingTextView = findViewById(R.id.bearingTextView);
         altitudeTextView = findViewById(R.id.altitudeTextView);
@@ -256,6 +86,24 @@ public class MainActivity extends AppCompatActivity {
         mButton1 = findViewById(R.id.button1);
         mButton2 = findViewById(R.id.button2);
         bgElement = (LinearLayout) findViewById(R.id.container);
+        timer = new Timer();
+        timerTask = new TimerTask() {
+            @Override
+            public void run() {
+                mGuiHandler.post(new Runnable() {
+
+                    @Override
+                    public void run() {
+                        draw();
+                        long DURATION_BETWEEN_FILE_WRITES = 60000;
+                        if (System.currentTimeMillis() - Data.mLastSavedTime > DURATION_BETWEEN_FILE_WRITES && Data.mStartTime != null) {
+                            writeToFile();
+                        }
+                    }
+                });
+            }
+        };
+        timer.schedule(timerTask, 1000, 1000);
         init();
         startLocationClient();
         mButton1.setOnClickListener(new View.OnClickListener() {
@@ -263,24 +111,24 @@ public class MainActivity extends AppCompatActivity {
             @SuppressLint("SetTextI18n")
             @Override
             public void onClick(View v) {
-                switch (mState) {
+                switch (Data.mState) {
                     case INIT:
-                        mState = State.STARTED;
-                        mSportType = SportType.RIDE;
-                        mMinSpeedLimit = MIN_SPEED_LIMIT_RIDE;
+                        Data.mState = State.STARTED;
+                        Data.mSportType = SportType.RIDE;
+                        Data.mMinSpeedLimit = MIN_SPEED_LIMIT_RIDE;
                         mButton1.setText("STOP");
                         mButton2.setEnabled(false);
                         mButton2.setVisibility(View.INVISIBLE);
                         break;
                     case STARTED:
-                        mState = State.STOPPED;
+                        Data.mState = State.STOPPED;
                         mButton1.setText("RESUME");
                         mButton2.setEnabled(true);
                         mButton2.setVisibility(View.VISIBLE);
                         mButton2.setText("SAVE");
                         break;
                     case STOPPED:
-                        mState = State.STARTED;
+                        Data.mState = State.STARTED;
                         mButton1.setText("STOP");
                         mButton2.setEnabled(false);
                         mButton2.setVisibility(View.INVISIBLE);
@@ -292,11 +140,11 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onClick(View v) {
-                switch (mState) {
+                switch (Data.mState) {
                     case INIT:
-                        mState = State.STARTED;
-                        mSportType = SportType.RUN;
-                        mMinSpeedLimit = MIN_SPEED_LIMIT_RUN;
+                        Data.mState = State.STARTED;
+                        Data.mSportType = SportType.RUN;
+                        Data.mMinSpeedLimit = MIN_SPEED_LIMIT_RUN;
                         mButton1.setText("STOP");
                         mButton2.setEnabled(false);
                         mButton2.setVisibility(View.INVISIBLE);
@@ -308,60 +156,25 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
-        resetPcc();
     }
 
-    private void writeToFile() {
-        if (mTrackPoints.isEmpty()) {
-            return;
-        }
-        if (checkPermissionsFile()) {
-            StringBuilder data = new StringBuilder("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n" +
-                    "<gpx version=\"1.1\" creator=\"FZ Tracker\" xmlns=\"http://www.topografix.com/GPX/1/1\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">\n" +
-                    "<trk>\n");
-//            if (mSportType == SportType.RIDE) {
-//                data.append("<name>Ride</name>\n" +
-//                        "<type>1</type>\n");
-//            } else if (mSportType == SportType.RUN) {
-//                data.append("<name>Run</name>\n" +
-//                        "<type>9</type>\n");
-//            }
-            data.append("  <trkseg>\n");
-            for (TrackPoint trkpt : mTrackPoints) {
-                data.append(String.format("    <trkpt lat=\"%.8f\" lon=\"%.8f\">\n", trkpt.getLat(), trkpt.getLon()));
-                data.append(String.format("      <time>%s</time>\n", trkpt.getTime()));
-                if (pwrPcc != null) {
-                    data.append(String.format("<extensions><cadence>%d</cadence><power>%d</power></extensions>\n",
-                            trkpt.getCadence(), trkpt.getPower()));
-                }
-                data.append("    </trkpt>\n");
-            }
-            data.append("  </trkseg>\n" + "</trk>\n" + "</gpx>");
-            final String fileName = mStartTime + ".gpx";
-            final File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-            final File file = new File(path, fileName);
-            try {
-                file.createNewFile();
-                FileOutputStream fOut = new FileOutputStream(file);
-                OutputStreamWriter myOutWriter = new OutputStreamWriter(fOut);
-                myOutWriter.append(data.toString());
-                myOutWriter.close();
-                fOut.flush();
-                fOut.close();
-                mLastSavedTime = System.currentTimeMillis();
-            } catch (Exception e) {
-                Log.e("Exception", "File write failed: " + e.toString());
-            }
-        } else {
-            requestPermissionsFile();
-        }
+    void init() {
+        mButton1.setText("START RIDE");
+        mButton2.setText("START RUN");
+        mButton1.setEnabled(true);
+        mButton1.setVisibility(View.VISIBLE);
+        mButton2.setEnabled(false);
+        mButton2.setVisibility(View.INVISIBLE);
+        Data.init();
     }
 
     @SuppressLint("MissingPermission")
-    private void startLocationClient() {
+    void startLocationClient() {
         if (checkPermissionsLocation()) {
             if (isLocationEnabled()) {
-                requestNewLocationData();
+                Log.i("startLocationClient", "isLocationEnabled = true");
+                Intent intent = new Intent(this, LocUpdaterService.class);
+                startService(intent);
             } else {
                 Toast.makeText(this, "Turn on location", Toast.LENGTH_LONG).show();
                 Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
@@ -372,27 +185,16 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    @SuppressLint("MissingPermission")
-    private void requestNewLocationData() {
-        LocationRequest locationRequest = new LocationRequest();
-        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        locationRequest.setInterval(1000);
-        locationRequest.setFastestInterval(1000);
-
-        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-        mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
-    }
-
-    private boolean checkPermissionsFile() {
+    boolean checkPermissionsFile() {
         return ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
     }
 
-    private boolean checkPermissionsLocation() {
+    boolean checkPermissionsLocation() {
         return ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED &&
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
 
-    private void requestPermissionsFile() {
+    void requestPermissionsFile() {
         ActivityCompat.requestPermissions(
                 this,
                 new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
@@ -400,7 +202,7 @@ public class MainActivity extends AppCompatActivity {
         );
     }
 
-    private void requestPermissionsLocation() {
+    void requestPermissionsLocation() {
         ActivityCompat.requestPermissions(
                 this,
                 new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION},
@@ -408,7 +210,7 @@ public class MainActivity extends AppCompatActivity {
         );
     }
 
-    private boolean isLocationEnabled() {
+    boolean isLocationEnabled() {
         LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         return locationManager != null && locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) || locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
     }
@@ -428,81 +230,77 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onResume() {
         super.onResume();
-        startLocationClient();
+//        startLocationClient();
     }
 
     @Override
     public void onBackPressed() {
-        if (mState == State.STOPPED) {
-            mFusedLocationClient.removeLocationUpdates(locationCallback);
-        }
-        moveTaskToBack(true);
+//        if (mState == State.STOPPED) {
+//            mFusedLocationClient.removeLocationUpdates(locationCallback);
+//        }
+//        moveTaskToBack(true);
     }
 
-    private void resetPcc() {
-        if (pwrReleaseHandle != null) {
-            pwrReleaseHandle.close();
+    void draw() {
+        bgElement.setBackgroundColor(Data.bgColor);
+        altitudeTextView.setText(String.format("%.0f m", Data.mAltitude));
+        totalAscentTextView.setText(String.format("%.0f m", Data.mTotalAscent));
+        distanceTextView.setText(String.format("%.2f km", Data.mDistance / 1000.0));
+        elapsedTimeTextView.setText(String.format("%s", Util.millisecondsToHuman(Data.mElapsedTime)));
+        movingTimeTextView.setText(String.format("%s", Util.millisecondsToHuman(Data.mMovingTime)));
+        timeTextView.setText(Data.mNow);
+        averageSpeedTextView.setText(String.format("%.2f", 3.6f * Data.mDistance / (Data.mMovingTime + 1) * 1000.0f));
+        accuracyTextView.setText(String.format("%.0f m", Data.mAccuracy));
+        speedTextView.setText(String.format("%.1f", Data.mSpeed));
+        bearingTextView.setText(String.format("%.0f deg", Data.mBearing));
+        latTextView.setText("" + Data.mLatitude);
+        lonTextView.setText("" + Data.mLongitude);
+        if (Data.pwrPcc == null) {
+            powerTextView.setText("---");
+            cadenceTextView.setText("---");
+        } else {
+            powerTextView.setText("" + Data.mPower);
+            cadenceTextView.setText("" + Data.mCadence);
         }
-        pwrReleaseHandle = AntPlusBikePowerPcc.requestAccess(getApplicationContext(),
-                16514,
-                0,
-                mResultReceiver,
-                mDeviceStateChangeReceiver);
     }
 
-    AntPluginPcc.IPluginAccessResultReceiver<AntPlusBikePowerPcc> mResultReceiver = new AntPluginPcc.IPluginAccessResultReceiver<AntPlusBikePowerPcc>() {
-
-        @Override
-        public void onResultReceived(AntPlusBikePowerPcc antPlusBikePowerPcc, RequestAccessResult requestAccessResult, DeviceState deviceState) {
-            switch (requestAccessResult) {
-                case SUCCESS:
-                    Log.i("result", "SUCCESS");
-                    pwrPcc = antPlusBikePowerPcc;
-                    subscribeToEvents();
-                    break;
-                case SEARCH_TIMEOUT:
-                    Log.i("result", "SEARCH_TIMEOUT");
-                    pwrReleaseHandle = AntPlusBikePowerPcc.requestAccess(getApplicationContext(),
-                            16514,
-                            0,
-                            mResultReceiver,
-                            mDeviceStateChangeReceiver);
-                    break;
-            }
+    void writeToFile() {
+        if (Data.mTrackPoints.isEmpty()) {
+            return;
         }
-    };
-
-    AntPluginPcc.IDeviceStateChangeReceiver mDeviceStateChangeReceiver = new AntPluginPcc.IDeviceStateChangeReceiver() {
-
-        @Override
-        public void onDeviceStateChange(final DeviceState newDeviceState) {
-            if (newDeviceState == DeviceState.DEAD) {
-                Log.i("state", "newDeviceState: " + newDeviceState);
-                pwrReleaseHandle = null;
+        if (checkPermissionsFile()) {
+            StringBuilder data = new StringBuilder("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n" +
+                    "<gpx version=\"1.1\" creator=\"FZ Tracker\" xmlns=\"http://www.topografix.com/GPX/1/1\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">\n" +
+                    "<trk>\n");
+            data.append("  <trkseg>\n");
+            for (TrackPoint trkpt : Data.mTrackPoints) {
+                data.append(String.format("    <trkpt lat=\"%.8f\" lon=\"%.8f\">\n", trkpt.getLat(), trkpt.getLon()));
+                data.append(String.format("      <time>%s</time>\n", trkpt.getTime()));
+                if (Data.pwrPcc != null) {
+                    data.append(String.format("<extensions><cadence>%d</cadence><power>%d</power></extensions>\n",
+                            trkpt.getCadence(), trkpt.getPower()));
+                }
+                data.append("    </trkpt>\n");
             }
+            data.append("  </trkseg>\n" + "</trk>\n" + "</gpx>");
+            final String fileName = Data.mStartTime + ".gpx";
+            final File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+            final File file = new File(path, fileName);
+            try {
+                file.createNewFile();
+                FileOutputStream fOut = new FileOutputStream(file);
+                OutputStreamWriter myOutWriter = new OutputStreamWriter(fOut);
+                myOutWriter.append(data.toString());
+                myOutWriter.close();
+                fOut.flush();
+                fOut.close();
+                Data.mLastSavedTime = System.currentTimeMillis();
+            } catch (Exception e) {
+                Log.e("Exception", "File write failed: " + e.toString());
+            }
+        } else {
+            requestPermissionsFile();
         }
-    };
-
-    private void subscribeToEvents() {
-        pwrPcc.subscribeCalculatedPowerEvent(new AntPlusBikePowerPcc.ICalculatedPowerReceiver() {
-            @Override
-            public void onNewCalculatedPower(final long estTimestamp, final EnumSet<EventFlag> eventFlags,
-                                             final AntPlusBikePowerPcc.DataSource dataSource,
-                                             final BigDecimal calculatedPower) {
-                Log.i("power", "calculatedPower: " + String.valueOf(calculatedPower));
-                mPower = calculatedPower.longValue();
-            }
-        });
-
-        pwrPcc.subscribeCalculatedCrankCadenceEvent(new AntPlusBikePowerPcc.ICalculatedCrankCadenceReceiver() {
-
-            @Override
-            public void onNewCalculatedCrankCadence(final long estTimestamp, final EnumSet<EventFlag> eventFlags,
-                                                    final AntPlusBikePowerPcc.DataSource dataSource,
-                                                    final BigDecimal calculatedCrankCadence) {
-                Log.i("cadence", "calculatedCrankCadence: " + String.valueOf(calculatedCrankCadence));
-                mCadence = calculatedCrankCadence.longValue();
-            }
-        });
     }
+
 }
