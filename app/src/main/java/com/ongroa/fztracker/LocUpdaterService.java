@@ -95,7 +95,9 @@ public class LocUpdaterService extends Service {
         @Override
         public void onLocationResult(LocationResult locationResult) {
             Data.mCounter++;
-            Log.i("a", String.format("counter: %d, size: %d, mLastSavedTime: %s", Data.mCounter, Data.mTrackPoints.size(), Data.mLastSavedTime));
+            if (Data.mTrackPoints != null) {
+                Log.i("a", String.format("counter: %d, size: %d, mLastSavedTime: %s", Data.mCounter, Data.mTrackPoints.size(), Data.mLastSavedTime));
+            }
             final Location location = locationResult.getLastLocation();
             if (location == null) {
                 return;
@@ -209,6 +211,7 @@ public class LocUpdaterService extends Service {
 
     void subscribeToEvents() {
         Data.pwrPcc.subscribeCalculatedPowerEvent(new AntPlusBikePowerPcc.ICalculatedPowerReceiver() {
+
             @Override
             public void onNewCalculatedPower(final long estTimestamp, final EnumSet<EventFlag> eventFlags,
                                              final AntPlusBikePowerPcc.DataSource dataSource,
