@@ -184,12 +184,12 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Altitude"
+                android:text="Power 3s"
                 android:textAppearance="@style/TextAppearance.AppCompat.Large"
                 android:textSize="20dp" />
 
             <TextView
-                android:id="@+id/altitudeTextView"
+                android:id="@+id/power3sTextView"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textAppearance="@style/TextAppearance.AppCompat.Large"
@@ -207,12 +207,12 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Total Ascent"
+                android:text="Power 30s"
                 android:textAppearance="@style/TextAppearance.AppCompat.Large"
                 android:textSize="20dp" />
 
             <TextView
-                android:id="@+id/totalAscentTextView"
+                android:id="@+id/power30sTextView"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textAppearance="@style/TextAppearance.AppCompat.Large"

@@ -1,13 +1,15 @@
 package com.ongroa.fztracker;
 
 class TrackPoint {
+    final long millis;
     private final String time;
     private final double lat;
     private final double lon;
-    private long cadence;
-    private long power;
+    private int cadence;
+    private int power;
 
-    public TrackPoint(String time, double lat, double lon) {
+    public TrackPoint(long millis, String time, double lat, double lon) {
+        this.millis = millis;
         this.time = time;
         this.lat = lat;
         this.lon = lon;
@@ -27,16 +29,17 @@ class TrackPoint {
         return lon;
     }
 
-    public long getCadence() {
+    public int getCadence() {
         return cadence;
     }
 
-    public long getPower() {
+    public int getPower() {
         return power;
     }
 
-    public void setCadenceAndPower(long cadence, long power) {
+    public void setCadenceAndPower(int cadence, int power) {
         this.cadence = cadence;
         this.power = power;
     }
+
 }

@@ -152,7 +152,7 @@ public class LocUpdaterService extends Service {
                     Data.mLastSavedTime = System.currentTimeMillis();
                 }
                 if (Data.mLatitude > 0 && Data.mLongitude > 0) {
-                    Data.mTrackPoints.add(new TrackPoint(mNowAsISO, Data.mLatitude, Data.mLongitude));
+                    Data.mTrackPoints.add(new TrackPoint(System.currentTimeMillis(), mNowAsISO, Data.mLatitude, Data.mLongitude));
                     if (Data.pwrPcc != null) {
                         Data.mTrackPoints.get(Data.mTrackPoints.size() - 1).setCadenceAndPower(Data.mCadence, Data.mPower);
                     }
@@ -216,8 +216,9 @@ public class LocUpdaterService extends Service {
             public void onNewCalculatedPower(final long estTimestamp, final EnumSet<EventFlag> eventFlags,
                                              final AntPlusBikePowerPcc.DataSource dataSource,
                                              final BigDecimal calculatedPower) {
-                Log.i("power", "calculatedPower: " + String.valueOf(calculatedPower));
-                Data.mPower = calculatedPower.longValue();
+                Log.i("onNewCalculatedPower", "calculatedPower: " + String.valueOf(calculatedPower));
+                Data.mPower = calculatedPower.intValue();
+                Data.mPowerPoints.add(new PowerPoint(System.currentTimeMillis(), calculatedPower.intValue()));
             }
         });
 
@@ -227,8 +228,8 @@ public class LocUpdaterService extends Service {
             public void onNewCalculatedCrankCadence(final long estTimestamp, final EnumSet<EventFlag> eventFlags,
                                                     final AntPlusBikePowerPcc.DataSource dataSource,
                                                     final BigDecimal calculatedCrankCadence) {
-                Log.i("cadence", "calculatedCrankCadence: " + String.valueOf(calculatedCrankCadence));
-                Data.mCadence = calculatedCrankCadence.longValue();
+                Log.i("onNewCalculatedCrankCadence", "calculatedCrankCadence: " + String.valueOf(calculatedCrankCadence));
+                Data.mCadence = calculatedCrankCadence.intValue();
             }
         });
     }

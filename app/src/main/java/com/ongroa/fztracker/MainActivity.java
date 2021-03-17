@@ -54,6 +54,8 @@ public class MainActivity extends AppCompatActivity {
     TextView latTextView;
     TextView lonTextView;
     TextView powerTextView;
+    TextView power3sTextView;
+    TextView power30sTextView;
     TextView cadenceTextView;
     TextView debugTextView;
     Button mButton1;
@@ -68,10 +70,11 @@ public class MainActivity extends AppCompatActivity {
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
         setContentView(R.layout.activity_main);
         Data.mTrackPoints = new ArrayList<>();
+        Data.mPowerPoints = new ArrayList<>();
         accuracyTextView = findViewById(R.id.accuracyTextView);
         bearingTextView = findViewById(R.id.bearingTextView);
-        altitudeTextView = findViewById(R.id.altitudeTextView);
-        totalAscentTextView = findViewById(R.id.totalAscentTextView);
+//        altitudeTextView = findViewById(R.id.altitudeTextView);
+//        totalAscentTextView = findViewById(R.id.totalAscentTextView);
         speedTextView = findViewById(R.id.speedTextView);
         averageSpeedTextView = findViewById(R.id.averageSpeedTextView);
         distanceTextView = findViewById(R.id.distanceTextView);
@@ -81,6 +84,8 @@ public class MainActivity extends AppCompatActivity {
         latTextView = findViewById(R.id.latTextView);
         lonTextView = findViewById(R.id.lonTextView);
         powerTextView = findViewById(R.id.powerTextView);
+        power3sTextView = findViewById(R.id.power3sTextView);
+        power30sTextView = findViewById(R.id.power30sTextView);
         cadenceTextView = findViewById(R.id.cadenceTextView);
 //        debugTextView = findViewById(R.id.debugTextView);
         mButton1 = findViewById(R.id.button1);
@@ -249,8 +254,8 @@ public class MainActivity extends AppCompatActivity {
 
     void draw() {
         bgElement.setBackgroundColor(Data.bgColor);
-        altitudeTextView.setText(String.format("%.0f m", Data.mAltitude));
-        totalAscentTextView.setText(String.format("%.0f m", Data.mTotalAscent));
+//        altitudeTextView.setText(String.format("%.0f m", Data.mAltitude));
+//        totalAscentTextView.setText(String.format("%.0f m", Data.mTotalAscent));
         distanceTextView.setText(String.format("%.2f km", Data.mDistance / 1000.0));
         elapsedTimeTextView.setText(String.format("%s", Util.millisecondsToHuman(Data.mElapsedTime)));
         movingTimeTextView.setText(String.format("%s", Util.millisecondsToHuman(Data.mMovingTime)));
@@ -263,15 +268,19 @@ public class MainActivity extends AppCompatActivity {
         lonTextView.setText("" + Data.mLongitude);
         if (Data.pwrPcc == null) {
             powerTextView.setText("---");
+            power3sTextView.setText("---");
+            power30sTextView.setText("---");
             cadenceTextView.setText("---");
         } else {
+            powerTextView.setText("" + Data.mPower);
+            power3sTextView.setText("" + Data.getAveragePower(3900));
+            power30sTextView.setText("" + Data.getAveragePower(30900));
             powerTextView.setText("" + Data.mPower);
             cadenceTextView.setText("" + Data.mCadence);
         }
     }
 
     void writeToFile() {
-//        Log.i("write to file", "write to file");
         if (Data.mTrackPoints.isEmpty()) {
             return;
         }
