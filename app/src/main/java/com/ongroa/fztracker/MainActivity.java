@@ -69,8 +69,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
         setContentView(R.layout.activity_main);
-        Data.mTrackPoints = new ArrayList<>();
-        Data.mPowerPoints = new ArrayList<>();
+        Data.trackPoints = new ArrayList<>();
+        Data.powerPoints = new ArrayList<>();
         accuracyTextView = findViewById(R.id.accuracyTextView);
         bearingTextView = findViewById(R.id.bearingTextView);
 //        altitudeTextView = findViewById(R.id.altitudeTextView);
@@ -102,7 +102,7 @@ public class MainActivity extends AppCompatActivity {
                     public void run() {
                         draw();
                         long DURATION_BETWEEN_FILE_WRITES = 60000;
-                        if (System.currentTimeMillis() - Data.mLastSavedTime > DURATION_BETWEEN_FILE_WRITES && Data.mStartTime != null) {
+                        if (System.currentTimeMillis() - Data.lastSavedTime > DURATION_BETWEEN_FILE_WRITES && Data.startTime != null) {
                             writeToFile();
                         }
                     }
@@ -117,24 +117,24 @@ public class MainActivity extends AppCompatActivity {
             @SuppressLint("SetTextI18n")
             @Override
             public void onClick(View v) {
-                switch (Data.mState) {
+                switch (Data.state) {
                     case INIT:
-                        Data.mState = State.STARTED;
-                        Data.mSportType = SportType.RIDE;
-                        Data.mMinSpeedLimit = MIN_SPEED_LIMIT_RIDE;
+                        Data.state = State.STARTED;
+                        Data.sportType = SportType.RIDE;
+                        Data.minSpeedLimit = MIN_SPEED_LIMIT_RIDE;
                         mButton1.setText("STOP");
                         mButton2.setEnabled(false);
                         mButton2.setVisibility(View.INVISIBLE);
                         break;
                     case STARTED:
-                        Data.mState = State.STOPPED;
+                        Data.state = State.STOPPED;
                         mButton1.setText("RESUME");
                         mButton2.setEnabled(true);
                         mButton2.setVisibility(View.VISIBLE);
                         mButton2.setText("SAVE");
                         break;
                     case STOPPED:
-                        Data.mState = State.STARTED;
+                        Data.state = State.STARTED;
                         mButton1.setText("STOP");
                         mButton2.setEnabled(false);
                         mButton2.setVisibility(View.INVISIBLE);
@@ -146,11 +146,11 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onClick(View v) {
-                switch (Data.mState) {
+                switch (Data.state) {
                     case INIT:
-                        Data.mState = State.STARTED;
-                        Data.mSportType = SportType.RUN;
-                        Data.mMinSpeedLimit = MIN_SPEED_LIMIT_RUN;
+                        Data.state = State.STARTED;
+                        Data.sportType = SportType.RUN;
+                        Data.minSpeedLimit = MIN_SPEED_LIMIT_RUN;
                         mButton1.setText("STOP");
                         mButton2.setEnabled(false);
                         mButton2.setVisibility(View.INVISIBLE);
@@ -256,32 +256,32 @@ public class MainActivity extends AppCompatActivity {
         bgElement.setBackgroundColor(Data.bgColor);
 //        altitudeTextView.setText(String.format("%.0f m", Data.mAltitude));
 //        totalAscentTextView.setText(String.format("%.0f m", Data.mTotalAscent));
-        distanceTextView.setText(String.format("%.2f km", Data.mDistance / 1000.0));
-        elapsedTimeTextView.setText(String.format("%s", Util.millisecondsToHuman(Data.mElapsedTime)));
-        movingTimeTextView.setText(String.format("%s", Util.millisecondsToHuman(Data.mMovingTime)));
-        timeTextView.setText(Data.mNow);
-        averageSpeedTextView.setText(String.format("%.2f", 3.6f * Data.mDistance / (Data.mMovingTime + 1) * 1000.0f));
-        accuracyTextView.setText(String.format("%.0f m", Data.mAccuracy));
-        speedTextView.setText(String.format("%.1f", Data.mSpeed));
-        bearingTextView.setText(String.format("%.0f deg", Data.mBearing));
-        latTextView.setText("" + Data.mLatitude);
-        lonTextView.setText("" + Data.mLongitude);
+        distanceTextView.setText(String.format("%.2f km", Data.distance / 1000.0));
+        elapsedTimeTextView.setText(String.format("%s", Util.millisecondsToHuman(Data.elapsedTime)));
+        movingTimeTextView.setText(String.format("%s", Util.millisecondsToHuman(Data.movingTime)));
+        timeTextView.setText(Data.now);
+        averageSpeedTextView.setText(String.format("%.2f", 3.6f * Data.distance / (Data.movingTime + 1) * 1000.0f));
+        accuracyTextView.setText(String.format("%.0f m", Data.accuracy));
+        speedTextView.setText(String.format("%.1f", Data.speed));
+        bearingTextView.setText(String.format("%.0f deg", Data.bearing));
+        latTextView.setText("" + Data.latitude);
+        lonTextView.setText("" + Data.longitude);
         if (Data.pwrPcc == null) {
             powerTextView.setText("---");
             power3sTextView.setText("---");
             power30sTextView.setText("---");
             cadenceTextView.setText("---");
         } else {
-            powerTextView.setText("" + Data.mPower);
+            powerTextView.setText("" + Data.power);
             power3sTextView.setText("" + Data.getAveragePower(3900));
             power30sTextView.setText("" + Data.getAveragePower(30900));
-            powerTextView.setText("" + Data.mPower);
-            cadenceTextView.setText("" + Data.mCadence);
+            powerTextView.setText("" + Data.power);
+            cadenceTextView.setText("" + Data.cadence);
         }
     }
 
     void writeToFile() {
-        if (Data.mTrackPoints.isEmpty()) {
+        if (Data.trackPoints.isEmpty()) {
             return;
         }
         if (checkPermissionsFile()) {
@@ -289,7 +289,7 @@ public class MainActivity extends AppCompatActivity {
                     "<gpx version=\"1.1\" creator=\"FZ Tracker\" xmlns=\"http://www.topografix.com/GPX/1/1\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">\n" +
                     "<trk>\n");
             data.append("  <trkseg>\n");
-            for (TrackPoint trkpt : Data.mTrackPoints) {
+            for (TrackPoint trkpt : Data.trackPoints) {
                 data.append(String.format("    <trkpt lat=\"%.8f\" lon=\"%.8f\">\n", trkpt.getLat(), trkpt.getLon()));
                 data.append(String.format("      <time>%s</time>\n", trkpt.getTime()));
                 if (Data.pwrPcc != null) {
@@ -299,7 +299,7 @@ public class MainActivity extends AppCompatActivity {
                 data.append("    </trkpt>\n");
             }
             data.append("  </trkseg>\n" + "</trk>\n" + "</gpx>");
-            final String fileName = Data.mStartTime + ".gpx";
+            final String fileName = Data.startTime + ".gpx";
             final File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
             final File file = new File(path, fileName);
             try {
@@ -310,7 +310,7 @@ public class MainActivity extends AppCompatActivity {
                 myOutWriter.close();
                 fOut.flush();
                 fOut.close();
-                Data.mLastSavedTime = System.currentTimeMillis();
+                Data.lastSavedTime = System.currentTimeMillis();
             } catch (Exception e) {
                 Log.e("Exception", "File write failed: " + e.toString());
             }

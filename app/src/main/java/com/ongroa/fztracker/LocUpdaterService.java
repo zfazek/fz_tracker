@@ -13,7 +13,6 @@ import android.os.IBinder;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
-import androidx.core.app.NotificationCompat;
 
 import com.dsi.ant.plugins.antplus.pcc.AntPlusBikePowerPcc;
 import com.dsi.ant.plugins.antplus.pcc.defines.DeviceState;
@@ -94,73 +93,73 @@ public class LocUpdaterService extends Service {
     public LocationCallback locationCallback = new LocationCallback() {
         @Override
         public void onLocationResult(LocationResult locationResult) {
-            Data.mCounter++;
-            if (Data.mTrackPoints != null) {
-                Log.i("a", String.format("counter: %d, size: %d, mLastSavedTime: %s", Data.mCounter, Data.mTrackPoints.size(), Data.mLastSavedTime));
+            Data.counter++;
+            if (Data.trackPoints != null) {
+                Log.i("a", String.format("counter: %d, size: %d, mLastSavedTime: %s", Data.counter, Data.trackPoints.size(), Data.lastSavedTime));
             }
             final Location location = locationResult.getLastLocation();
             if (location == null) {
                 return;
             }
-            if (Data.mPrevTime == 0) {
-                Data.mPrevTime = location.getTime();
+            if (Data.prevTime == 0) {
+                Data.prevTime = location.getTime();
                 return;
             }
-            Data.mAccuracy = location.getAccuracy();
+            Data.accuracy = location.getAccuracy();
             float MIN_ACCURACY_LIMIT = 25.0f;
-            if (Data.mAccuracy >= MIN_ACCURACY_LIMIT) {
+            if (Data.accuracy >= MIN_ACCURACY_LIMIT) {
                 Data.bgColor = Color.RED;
-            } else if (Data.mState == State.INIT || Data.mState == State.STOPPED) {
+            } else if (Data.state == State.INIT || Data.state == State.STOPPED) {
                 Data.bgColor = Color.BLUE;
             } else {
-                if (Data.mSportType == SportType.RIDE) {
+                if (Data.sportType == SportType.RIDE) {
                     Data.bgColor = Color.WHITE;
                 } else {
                     Data.bgColor = Color.YELLOW;
                 }
             }
-            Data.mNow = mTimeFormat.format(new Date());
-            final long deltaTime = location.getTime() - Data.mPrevTime;
-            Data.mPrevTime = location.getTime();
-            if (Data.mAccuracy < MIN_ACCURACY_LIMIT) {
-                Data.mSpeed = 3.6f * location.getSpeed();
-                if (Data.mState == State.STOPPED) {
-                    Data.mLatitude = location.getLatitude();
-                    Data.mLongitude = location.getLongitude();
-                    Data.mBearing = location.getBearing();
+            Data.now = mTimeFormat.format(new Date());
+            final long deltaTime = location.getTime() - Data.prevTime;
+            Data.prevTime = location.getTime();
+            if (Data.accuracy < MIN_ACCURACY_LIMIT) {
+                Data.speed = 3.6f * location.getSpeed();
+                if (Data.state == State.STOPPED) {
+                    Data.latitude = location.getLatitude();
+                    Data.longitude = location.getLongitude();
+                    Data.bearing = location.getBearing();
                 }
             }
-            if (Data.mState == State.STARTED && Data.mLastLocation != null && Data.mAccuracy < MIN_ACCURACY_LIMIT) {
-                if (Data.mSpeed >= Data.mMinSpeedLimit) {
-                    Data.mLatitude = location.getLatitude();
-                    Data.mLongitude = location.getLongitude();
-                    Data.mBearing = location.getBearing();
-                    final float dist = location.distanceTo(Data.mLastLocation);
-                    Data.mDistance += dist;
-                    Data.mMovingTime += deltaTime;
-                    Data.mAltitude = location.getAltitude();
-                    final double lastAltitude = Data.mLastLocation.getAltitude();
-                    if (Data.mAltitude > lastAltitude) {
-                        Data.mTotalAscent += Data.mAltitude - lastAltitude;
+            if (Data.state == State.STARTED && Data.lastLocation != null && Data.accuracy < MIN_ACCURACY_LIMIT) {
+                if (Data.speed >= Data.minSpeedLimit) {
+                    Data.latitude = location.getLatitude();
+                    Data.longitude = location.getLongitude();
+                    Data.bearing = location.getBearing();
+                    final float dist = location.distanceTo(Data.lastLocation);
+                    Data.distance += dist;
+                    Data.movingTime += deltaTime;
+                    Data.altitude = location.getAltitude();
+                    final double lastAltitude = Data.lastLocation.getAltitude();
+                    if (Data.altitude > lastAltitude) {
+                        Data.totalAscent += Data.altitude - lastAltitude;
                     }
                 } else {
                     Data.bgColor = Color.CYAN;
                 }
                 String mNowAsISO = mDateFormatISO.format(new Date());
-                if (Data.mTrackPoints.isEmpty()) {
-                    Data.mStartTime = mDateFormat.format(new Date());
-                    Data.mLastSavedTime = System.currentTimeMillis();
+                if (Data.trackPoints.isEmpty()) {
+                    Data.startTime = mDateFormat.format(new Date());
+                    Data.lastSavedTime = System.currentTimeMillis();
                 }
-                if (Data.mLatitude > 0 && Data.mLongitude > 0) {
-                    Data.mTrackPoints.add(new TrackPoint(System.currentTimeMillis(), mNowAsISO, Data.mLatitude, Data.mLongitude));
+                if (Data.latitude > 0 && Data.longitude > 0) {
+                    Data.trackPoints.add(new TrackPoint(System.currentTimeMillis(), mNowAsISO, Data.latitude, Data.longitude));
                     if (Data.pwrPcc != null) {
-                        Data.mTrackPoints.get(Data.mTrackPoints.size() - 1).setCadenceAndPower(Data.mCadence, Data.mPower);
+                        Data.trackPoints.get(Data.trackPoints.size() - 1).setCadenceAndPower(Data.cadence, Data.power);
                     }
                 }
-                Data.mElapsedTime += deltaTime;
+                Data.elapsedTime += deltaTime;
             }
-            if (Data.mAccuracy < MIN_ACCURACY_LIMIT) {
-                Data.mLastLocation = location;
+            if (Data.accuracy < MIN_ACCURACY_LIMIT) {
+                Data.lastLocation = location;
             }
         }
     };
@@ -217,8 +216,8 @@ public class LocUpdaterService extends Service {
                                              final AntPlusBikePowerPcc.DataSource dataSource,
                                              final BigDecimal calculatedPower) {
                 Log.i("onNewCalculatedPower", "calculatedPower: " + String.valueOf(calculatedPower));
-                Data.mPower = calculatedPower.intValue();
-                Data.mPowerPoints.add(new PowerPoint(System.currentTimeMillis(), calculatedPower.intValue()));
+                Data.power = calculatedPower.intValue();
+                Data.powerPoints.add(new PowerPoint(System.currentTimeMillis(), calculatedPower.intValue()));
             }
         });
 
@@ -229,7 +228,7 @@ public class LocUpdaterService extends Service {
                                                     final AntPlusBikePowerPcc.DataSource dataSource,
                                                     final BigDecimal calculatedCrankCadence) {
                 Log.i("onNewCalculatedCrankCadence", "calculatedCrankCadence: " + String.valueOf(calculatedCrankCadence));
-                Data.mCadence = calculatedCrankCadence.intValue();
+                Data.cadence = calculatedCrankCadence.intValue();
             }
         });
     }
