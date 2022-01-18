@@ -1,1 +1,1 @@
-Strava bike compatible activity tracker for Android devices
+# Strava bike compatible activity tracker for Android devices
