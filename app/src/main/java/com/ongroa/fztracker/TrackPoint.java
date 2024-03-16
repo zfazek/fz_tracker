@@ -7,6 +7,7 @@ class TrackPoint {
     private final double lon;
     private int cadence;
     private int power;
+    private int heartRate;
 
     public TrackPoint(long millis, String time, double lat, double lon) {
         this.millis = millis;
@@ -15,6 +16,7 @@ class TrackPoint {
         this.lon = lon;
         this.cadence = 0;
         this.power = 0;
+        this.heartRate = 0;
     }
 
     public String getTime() {
@@ -37,9 +39,16 @@ class TrackPoint {
         return power;
     }
 
+    public int getHeartRate() {
+        return heartRate;
+    }
+
     public void setCadenceAndPower(int cadence, int power) {
         this.cadence = cadence;
         this.power = power;
     }
 
+    public void setHeartRate(int heartRate) {
+        this.heartRate = heartRate;
+    }
 }

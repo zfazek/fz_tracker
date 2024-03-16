@@ -1,2 +1,4 @@
+include ':antpluginlib_3-9-0'
+include ':antpluginlib_3-9-0'
 rootProject.name='FZ Tracker'
 include ':app'

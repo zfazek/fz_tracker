@@ -15,6 +15,7 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 
 import com.dsi.ant.plugins.antplus.pcc.AntPlusBikePowerPcc;
+import com.dsi.ant.plugins.antplus.pcc.AntPlusHeartRatePcc;
 import com.dsi.ant.plugins.antplus.pcc.defines.DeviceState;
 import com.dsi.ant.plugins.antplus.pcc.defines.EventFlag;
 import com.dsi.ant.plugins.antplus.pcc.defines.RequestAccessResult;
@@ -36,6 +37,7 @@ import java.util.TimeZone;
 public class LocUpdaterService extends Service {
     FusedLocationProviderClient mFusedLocationClient;
     PccReleaseHandle<AntPlusBikePowerPcc> pwrReleaseHandle = null;
+    PccReleaseHandle<AntPlusHeartRatePcc> heartRatePccPccReleaseHandle = null;
 
     DateFormat mDateFormat;
     DateFormat mTimeFormat;
@@ -123,43 +125,43 @@ public class LocUpdaterService extends Service {
             Data.prevTime = location.getTime();
             if (Data.accuracy < MIN_ACCURACY_LIMIT) {
                 Data.speed = 3.6f * location.getSpeed();
-                if (Data.state == State.STOPPED) {
-                    Data.latitude = location.getLatitude();
-                    Data.longitude = location.getLongitude();
-                    Data.bearing = location.getBearing();
-                }
-            }
-            if (Data.state == State.STARTED && Data.lastLocation != null && Data.accuracy < MIN_ACCURACY_LIMIT) {
-                if (Data.speed >= Data.minSpeedLimit) {
-                    Data.latitude = location.getLatitude();
-                    Data.longitude = location.getLongitude();
-                    Data.bearing = location.getBearing();
-                    final float dist = location.distanceTo(Data.lastLocation);
-                    Data.distance += dist;
-                    Data.movingTime += deltaTime;
-                    Data.altitude = location.getAltitude();
-                    final double lastAltitude = Data.lastLocation.getAltitude();
-                    if (Data.altitude > lastAltitude) {
-                        Data.totalAscent += Data.altitude - lastAltitude;
-                    }
-                } else {
-                    Data.bgColor = Color.CYAN;
-                }
-                String mNowAsISO = mDateFormatISO.format(new Date());
-                if (Data.trackPoints.isEmpty()) {
-                    Data.startTime = mDateFormat.format(new Date());
-                    Data.lastSavedTime = System.currentTimeMillis();
-                }
-                if (Data.latitude > 0 && Data.longitude > 0) {
-                    Data.trackPoints.add(new TrackPoint(System.currentTimeMillis(), mNowAsISO, Data.latitude, Data.longitude));
-                    if (Data.pwrPcc != null) {
-                        Data.trackPoints.get(Data.trackPoints.size() - 1).setCadenceAndPower(Data.cadence, Data.power);
-                    }
-                }
-                Data.elapsedTime += deltaTime;
-            }
-            if (Data.accuracy < MIN_ACCURACY_LIMIT) {
+                Data.latitude = location.getLatitude();
+                Data.longitude = location.getLongitude();
+                Data.bearing = location.getBearing();
                 Data.lastLocation = location;
+                if (Data.state == State.STARTED && Data.lastLocation != null) {
+                    if (Data.speed >= Data.minSpeedLimit) {
+                        final float dist = location.distanceTo(Data.lastLocation);
+                        Data.distance += dist;
+                        Data.movingTime += deltaTime;
+                        Data.altitude = location.getAltitude();
+                        final double lastAltitude = Data.lastLocation.getAltitude();
+                        if (Data.altitude > lastAltitude) {
+                            Data.totalAscent += Data.altitude - lastAltitude;
+                        }
+                    } else {
+                        Data.bgColor = Color.CYAN;
+                    }
+                    String mNowAsISO = mDateFormatISO.format(new Date());
+                    if (Data.trackPoints.isEmpty()) {
+                        Data.startTime = mDateFormat.format(new Date());
+                        Data.lastSavedTime = System.currentTimeMillis();
+                    }
+                    if (Data.latitude > 0 && Data.longitude > 0) {
+                        Data.trackPoints.add(new TrackPoint(System.currentTimeMillis(), mNowAsISO, Data.latitude, Data.longitude));
+                        if (Data.pwrPcc != null) {
+                            Data.trackPoints.get(Data.trackPoints.size() - 1).setCadenceAndPower(Data.cadence, Data.power);
+                        } else {
+                            Data.trackPoints.get(Data.trackPoints.size() - 1).setCadenceAndPower(-1, -1);
+                        }
+                        if (Data.heartRatePcc != null) {
+                            Data.trackPoints.get(Data.trackPoints.size() - 1).setHeartRate(Data.heartRate);
+                        } else {
+                            Data.trackPoints.get(Data.trackPoints.size() - 1).setHeartRate(-1);
+                        }
+                    }
+                    Data.elapsedTime += deltaTime;
+                }
             }
         }
     };
@@ -171,44 +173,87 @@ public class LocUpdaterService extends Service {
         pwrReleaseHandle = AntPlusBikePowerPcc.requestAccess(getApplicationContext(),
                 16514,
                 0,
-                mResultReceiver,
-                mDeviceStateChangeReceiver);
+                mResultReceiverPower,
+                mDeviceStateChangeReceiverPower);
+
+        if (heartRatePccPccReleaseHandle != null) {
+            heartRatePccPccReleaseHandle.close();
+        }
+        heartRatePccPccReleaseHandle = AntPlusHeartRatePcc.requestAccess(getApplicationContext(), 661,
+                0, mResultReceiverHeartRate, mDeviceStateChangeReceiverHeartRate);
     }
 
-    AntPluginPcc.IPluginAccessResultReceiver<AntPlusBikePowerPcc> mResultReceiver = new AntPluginPcc.IPluginAccessResultReceiver<AntPlusBikePowerPcc>() {
+    AntPluginPcc.IPluginAccessResultReceiver<AntPlusBikePowerPcc> mResultReceiverPower = new AntPluginPcc.IPluginAccessResultReceiver<AntPlusBikePowerPcc>() {
 
         @Override
         public void onResultReceived(AntPlusBikePowerPcc antPlusBikePowerPcc, RequestAccessResult requestAccessResult, DeviceState deviceState) {
+            Log.i("power", "power onResultReceived " + requestAccessResult);
+
             switch (requestAccessResult) {
                 case SUCCESS:
-                    Log.i("result", "SUCCESS");
+                    Log.i("result power", "SUCCESS");
                     Data.pwrPcc = antPlusBikePowerPcc;
-                    subscribeToEvents();
+                    subscribeToEventsPower();
                     break;
                 case SEARCH_TIMEOUT:
-                    Log.i("result", "SEARCH_TIMEOUT");
+                    Log.i("result power", "SEARCH_TIMEOUT");
                     pwrReleaseHandle = AntPlusBikePowerPcc.requestAccess(getApplicationContext(),
                             16514,
                             0,
-                            mResultReceiver,
-                            mDeviceStateChangeReceiver);
+                            mResultReceiverPower,
+                            mDeviceStateChangeReceiverPower);
                     break;
             }
         }
     };
 
-    AntPluginPcc.IDeviceStateChangeReceiver mDeviceStateChangeReceiver = new AntPluginPcc.IDeviceStateChangeReceiver() {
+    AntPluginPcc.IPluginAccessResultReceiver<AntPlusHeartRatePcc> mResultReceiverHeartRate = new AntPluginPcc.IPluginAccessResultReceiver<AntPlusHeartRatePcc>() {
+
+        @Override
+        public void onResultReceived(AntPlusHeartRatePcc antPlusHeartRatePcc, RequestAccessResult requestAccessResult, DeviceState deviceState) {
+            Log.i("heart", "heart rate onResultReceived " + requestAccessResult);
+
+            switch (requestAccessResult) {
+                case SUCCESS:
+                    Log.i("result heart rate", "SUCCESS");
+                    Data.heartRatePcc = antPlusHeartRatePcc;
+                    subscribeToEventsHeartRate();
+                    break;
+                case SEARCH_TIMEOUT:
+                    Log.i("result heart rate", "SEARCH_TIMEOUT");
+                    heartRatePccPccReleaseHandle = AntPlusHeartRatePcc.requestAccess(getApplicationContext(),
+                            661,
+                            0,
+                            mResultReceiverHeartRate,
+                            mDeviceStateChangeReceiverHeartRate);
+                    break;
+            }
+        }
+    };
+
+    AntPluginPcc.IDeviceStateChangeReceiver mDeviceStateChangeReceiverPower = new AntPluginPcc.IDeviceStateChangeReceiver() {
 
         @Override
         public void onDeviceStateChange(final DeviceState newDeviceState) {
             if (newDeviceState == DeviceState.DEAD) {
-                Log.i("state", "newDeviceState: " + newDeviceState);
+                Log.i("state power", "newDeviceState: " + newDeviceState);
                 pwrReleaseHandle = null;
             }
         }
     };
 
-    void subscribeToEvents() {
+    AntPluginPcc.IDeviceStateChangeReceiver mDeviceStateChangeReceiverHeartRate = new AntPluginPcc.IDeviceStateChangeReceiver() {
+
+        @Override
+        public void onDeviceStateChange(final DeviceState newDeviceState) {
+            if (newDeviceState == DeviceState.DEAD) {
+                Log.i("state heart rate", "newDeviceState: " + newDeviceState);
+                heartRatePccPccReleaseHandle = null;
+            }
+        }
+    };
+
+    void subscribeToEventsPower() {
         Data.pwrPcc.subscribeCalculatedPowerEvent(new AntPlusBikePowerPcc.ICalculatedPowerReceiver() {
 
             @Override
@@ -229,6 +274,18 @@ public class LocUpdaterService extends Service {
                                                     final BigDecimal calculatedCrankCadence) {
                 Log.i("onNewCalculatedCrankCadence", "calculatedCrankCadence: " + String.valueOf(calculatedCrankCadence));
                 Data.cadence = calculatedCrankCadence.intValue();
+            }
+        });
+    }
+
+    void subscribeToEventsHeartRate() {
+        Data.heartRatePcc.subscribeHeartRateDataEvent(new AntPlusHeartRatePcc.IHeartRateDataReceiver() {
+            @Override
+            public void onNewHeartRateData(long estTimestamp, java.util.EnumSet<EventFlag> eventFlags, int computedHeartRate, long heartBeatCount, java.math.BigDecimal heartBeatEventTime, AntPlusHeartRatePcc.DataState dataState) {
+                if (dataState == AntPlusHeartRatePcc.DataState.LIVE_DATA) {
+                    Log.i("onNewHeartRateData", "heart rate: " + String.valueOf(computedHeartRate));
+                    Data.heartRate = computedHeartRate;
+                }
             }
         });
     }

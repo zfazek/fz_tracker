@@ -4,11 +4,13 @@ import android.location.Location;
 import android.util.Log;
 
 import com.dsi.ant.plugins.antplus.pcc.AntPlusBikePowerPcc;
+import com.dsi.ant.plugins.antplus.pcc.AntPlusHeartRatePcc;
 
 import java.util.ArrayList;
 
 public class Data {
     static AntPlusBikePowerPcc pwrPcc;
+    static AntPlusHeartRatePcc heartRatePcc;
 
     static State state;
     static SportType sportType;
@@ -34,15 +36,18 @@ public class Data {
     static Location lastLocation;
     static int power;
     static int cadence;
+    static int heartRate;
 
     static int bgColor;
 
     static public void init() {
         pwrPcc = null;
+        heartRatePcc = null;
         state = State.INIT;
         sportType = SportType.RIDE;
         cadence = 0;
         power = 0;
+        heartRate = 0;
         prevTime = 0;
         counter = 0;
         trackPoints.clear();

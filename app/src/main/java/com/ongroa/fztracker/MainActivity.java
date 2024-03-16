@@ -39,8 +39,8 @@ public class MainActivity extends AppCompatActivity {
     final int PERMISSION_ID_FILE = 43;
     final int PERMISSION_ID_LOCATION = 44;
 
-    final float MIN_SPEED_LIMIT_RIDE = 4.0f;
-    final float MIN_SPEED_LIMIT_RUN = 1.5f;
+    final float MIN_SPEED_LIMIT_RIDE = 0.0f;
+    final float MIN_SPEED_LIMIT_RUN = 0.0f;
 
     TextView speedTextView;
     TextView averageSpeedTextView;
@@ -55,7 +55,7 @@ public class MainActivity extends AppCompatActivity {
     TextView timeTextView;
     TextView latTextView;
     TextView lonTextView;
-    TextView powerTextView;
+    TextView heartRateTextView;
     TextView power3sTextView;
     TextView power30sTextView;
     TextView cadenceTextView;
@@ -85,7 +85,7 @@ public class MainActivity extends AppCompatActivity {
         timeTextView = findViewById(R.id.timeTextView);
         latTextView = findViewById(R.id.latTextView);
         lonTextView = findViewById(R.id.lonTextView);
-        powerTextView = findViewById(R.id.powerTextView);
+        heartRateTextView = findViewById(R.id.powerTextView);
         power3sTextView = findViewById(R.id.power3sTextView);
         power30sTextView = findViewById(R.id.power30sTextView);
         cadenceTextView = findViewById(R.id.cadenceTextView);
@@ -287,16 +287,18 @@ public class MainActivity extends AppCompatActivity {
         latTextView.setText("" + Data.latitude);
         lonTextView.setText("" + Data.longitude);
         if (Data.pwrPcc == null) {
-            powerTextView.setText("---");
             power3sTextView.setText("---");
             power30sTextView.setText("---");
             cadenceTextView.setText("---");
         } else {
-            powerTextView.setText("" + Data.power);
             power3sTextView.setText("" + Data.getAveragePower(3900));
             power30sTextView.setText("" + Data.getAveragePower(30900));
-            powerTextView.setText("" + Data.power);
             cadenceTextView.setText("" + Data.cadence);
+        }
+        if (Data.heartRatePcc == null) {
+            heartRateTextView.setText("---");
+        } else {
+            heartRateTextView.setText("" + Data.heartRate);
         }
     }
 
@@ -312,9 +314,15 @@ public class MainActivity extends AppCompatActivity {
             for (TrackPoint trkpt : Data.trackPoints) {
                 data.append(String.format("    <trkpt lat=\"%.8f\" lon=\"%.8f\">\n", trkpt.getLat(), trkpt.getLon()));
                 data.append(String.format("      <time>%s</time>\n", trkpt.getTime()));
-                if (Data.pwrPcc != null) {
-                    data.append(String.format("<extensions><cadence>%d</cadence><power>%d</power></extensions>\n",
-                            trkpt.getCadence(), trkpt.getPower()));
+                if (trkpt.getPower() >= 0 || trkpt.getHeartRate() >= 0) {
+                    data.append("      <extensions>\n");
+                    if (trkpt.getPower() >= 0) {
+                        data.append(String.format("      <cadence>%d</cadence><power>%d</power>\n", trkpt.getCadence(), trkpt.getPower()));
+                    }
+                    if (trkpt.getHeartRate() >= 0) {
+                        data.append(String.format("        <gpxtpx:TrackPointExtension><gpxtpx:hr>%d</gpxtpx:hr></gpxtpx:TrackPointExtension>\n", trkpt.getHeartRate()));
+                    }
+                    data.append("      </extensions>\n");
                 }
                 data.append("    </trkpt>\n");
             }
