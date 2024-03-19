@@ -35,11 +35,13 @@ public class MainActivity extends AppCompatActivity {
 
     Timer timer;
     TimerTask timerTask;
+    HeartRate heartRate;
+    Power power;
 
     final int PERMISSION_ID_FILE = 43;
     final int PERMISSION_ID_LOCATION = 44;
 
-    final float MIN_SPEED_LIMIT_RIDE = 0.0f;
+    final float MIN_SPEED_LIMIT_RIDE = 4.9f;
     final float MIN_SPEED_LIMIT_RUN = 0.0f;
 
     TextView speedTextView;
@@ -93,6 +95,11 @@ public class MainActivity extends AppCompatActivity {
         mButton1 = findViewById(R.id.button1);
         mButton2 = findViewById(R.id.button2);
         bgElement = (LinearLayout) findViewById(R.id.container);
+
+        startLocationClient();
+        heartRate = new HeartRate(getApplicationContext());
+        power = new Power(getApplicationContext());
+
         timer = new Timer();
         timerTask = new TimerTask() {
 
@@ -104,16 +111,15 @@ public class MainActivity extends AppCompatActivity {
                     public void run() {
                         draw();
                         long DURATION_BETWEEN_FILE_WRITES = 60000;
-                        if (System.currentTimeMillis() - Data.lastSavedTime > DURATION_BETWEEN_FILE_WRITES && Data.startTime != null) {
+                        if (Data.state == State.STARTED && System.currentTimeMillis() - Data.lastSavedTime > DURATION_BETWEEN_FILE_WRITES && Data.startTime != null) {
                             writeToFile();
                         }
                     }
                 });
             }
         };
-        timer.schedule(timerTask, 1000, 1000);
+        timer.schedule(timerTask, 1000, 900);
         init();
-        startLocationClient();
         mButton1.setOnClickListener(new View.OnClickListener() {
 
             @SuppressLint("SetTextI18n")
@@ -180,7 +186,7 @@ public class MainActivity extends AppCompatActivity {
     void startLocationClient() {
         if (checkPermissionsLocation()) {
             if (isLocationEnabled()) {
-                Log.i("startLocationClient", "isLocationEnabled = true");
+                Log.i("location", "start location client");
                 Intent intent = new Intent(this, LocUpdaterService.class);
                 startService(intent);
             } else {
@@ -238,13 +244,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onPause() {
+        super.onPause();
+    }
+
+    @Override
     public void onResume() {
         super.onResume();
     }
 
     @Override
     public void onBackPressed() {
-        // TODO Auto-generated method stub
 
         new AlertDialog.Builder(MainActivity.this)
                 .setTitle("Exit?")
@@ -252,6 +262,7 @@ public class MainActivity extends AppCompatActivity {
                 .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
                         ActivityCompat.finishAffinity(MainActivity.this);
+                        Log.i("main", "finish");
                         finish();
                     }
                 })
@@ -268,8 +279,15 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        Log.i("location", "stop location client");
         Intent intent = new Intent(this, LocUpdaterService.class);
         stopService(intent);
+        if (Data.heartRatePcc != null) {
+            Data.heartRatePcc.releaseAccess();
+        }
+        if (Data.powerPcc != null) {
+            Data.powerPcc.releaseAccess();
+        }
     }
 
     void draw() {
@@ -286,7 +304,7 @@ public class MainActivity extends AppCompatActivity {
         bearingTextView.setText(String.format("%.0f deg", Data.bearing));
         latTextView.setText("" + Data.latitude);
         lonTextView.setText("" + Data.longitude);
-        if (Data.pwrPcc == null) {
+        if (Data.powerPcc == null) {
             power3sTextView.setText("---");
             power30sTextView.setText("---");
             cadenceTextView.setText("---");
@@ -309,7 +327,7 @@ public class MainActivity extends AppCompatActivity {
         if (checkPermissionsFile()) {
             StringBuilder data = new StringBuilder("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n" +
                     "<gpx version=\"1.1\" creator=\"FZ Tracker\" xmlns=\"http://www.topografix.com/GPX/1/1\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">\n" +
-                    "<trk>\n");
+                    "<trk>\n  <type>cycling</type>\n");
             data.append("  <trkseg>\n");
             for (TrackPoint trkpt : Data.trackPoints) {
                 data.append(String.format("    <trkpt lat=\"%.8f\" lon=\"%.8f\">\n", trkpt.getLat(), trkpt.getLon()));

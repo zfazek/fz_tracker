@@ -9,7 +9,7 @@ import com.dsi.ant.plugins.antplus.pcc.AntPlusHeartRatePcc;
 import java.util.ArrayList;
 
 public class Data {
-    static AntPlusBikePowerPcc pwrPcc;
+    static AntPlusBikePowerPcc powerPcc;
     static AntPlusHeartRatePcc heartRatePcc;
 
     static State state;
@@ -41,7 +41,7 @@ public class Data {
     static int bgColor;
 
     static public void init() {
-        pwrPcc = null;
+        powerPcc = null;
         heartRatePcc = null;
         state = State.INIT;
         sportType = SportType.RIDE;
